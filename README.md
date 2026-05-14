@@ -3,6 +3,7 @@
 > Explore the real-world impact of supersonic commercial flight.
 
 **Status:** 🚧 Scaffold landed — feature work in progress
+**Live:** [supersonicimpact.vercel.app](https://supersonicimpact.vercel.app)
 
 An interactive website that turns abstract claims about supersonic flight ("Mach 1.7", "half the flight time") into intuitive, visual experiences: side-by-side route comparisons, personal time-value calculators, and an economic-impact simulator. The first aircraft modeled is **Boom Supersonic's Overture**; more will follow.
 
