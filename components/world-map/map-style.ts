@@ -18,9 +18,9 @@ const dark: ThemeColors = {
 
 const light: ThemeColors = {
   background: "#fafafa",
-  countriesFill: "#e4e4e7",
-  countriesStroke: "#a1a1aa",
-  airportBase: "#71717a",
+  countriesFill: "#d4d4d8",
+  countriesStroke: "#71717a",
+  airportBase: "#52525b",
 };
 
 export const arcColors = {
@@ -66,8 +66,8 @@ export function buildMapStyle(
         source: "countries",
         paint: {
           "line-color": c.countriesStroke,
-          "line-width": 0.4,
-          "line-opacity": 0.65,
+          "line-width": 0.7,
+          "line-opacity": 0.8,
         },
       },
     ],

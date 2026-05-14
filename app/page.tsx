@@ -1,21 +1,17 @@
 import { ExternalLink } from "lucide-react";
-import { Hero } from "@/components/hero";
-import { Navbar } from "@/components/navbar";
+import { HeroGlobe } from "@/components/hero-globe";
 import { RouteComparator } from "@/components/route-comparator";
-import { WorldMap } from "@/components/world-map";
+import { SectionNav } from "@/components/section-nav";
 import { SelectionProvider } from "@/lib/selection-context";
 
 export default function Home() {
   return (
-    <>
-      <Navbar />
-      <SelectionProvider>
-        <main>
-          <Hero />
-          <WorldMap />
-          <RouteComparator />
-        </main>
-      </SelectionProvider>
+    <SelectionProvider>
+      <HeroGlobe />
+      <main>
+        <RouteComparator />
+      </main>
+      <SectionNav />
       <footer className="border-t border-foreground/5 px-6 py-10 text-center text-xs text-foreground/50 sm:px-10">
         <span>
           Illustrative — based on Boom Supersonic&rsquo;s public claims and
@@ -30,6 +26,6 @@ export default function Home() {
           <ExternalLink className="h-3 w-3" aria-hidden="true" />
         </a>
       </footer>
-    </>
+    </SelectionProvider>
   );
 }

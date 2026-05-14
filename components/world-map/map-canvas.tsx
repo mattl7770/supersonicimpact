@@ -238,7 +238,37 @@ export function MapCanvas({ projection, theme }: MapCanvasProps) {
       maybeDraw();
     });
 
+    // Idle auto-rotate in globe mode — premium touch.
+    let lastInteractionAt = performance.now();
+    let rotateFrameId: number | null = null;
+    const reduceMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function noteInteraction() {
+      lastInteractionAt = performance.now();
+    }
+    map.on("mousedown", noteInteraction);
+    map.on("touchstart", noteInteraction);
+    map.on("wheel", noteInteraction);
+    map.on("dragstart", noteInteraction);
+
+    function rotateTick() {
+      if (
+        !reduceMotion &&
+        projectionRef.current === "globe" &&
+        styleLoadedRef.current &&
+        performance.now() - lastInteractionAt > 1800
+      ) {
+        const c = map.getCenter();
+        map.setCenter([c.lng + 0.12, c.lat]);
+      }
+      rotateFrameId = requestAnimationFrame(rotateTick);
+    }
+    rotateFrameId = requestAnimationFrame(rotateTick);
+
     return () => {
+      if (rotateFrameId !== null) cancelAnimationFrame(rotateFrameId);
       cancelFrames();
       map.remove();
       mapRef.current = null;
@@ -422,7 +452,7 @@ export function MapCanvas({ projection, theme }: MapCanvasProps) {
     : 0;
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-3xl border border-foreground/10 bg-foreground/[0.02]">
+    <div className="relative h-full w-full overflow-hidden">
       <div ref={containerRef} className="absolute inset-0" />
 
       {/* Overlay labels */}

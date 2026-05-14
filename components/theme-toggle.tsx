@@ -10,7 +10,7 @@ export function ThemeToggle() {
     return (
       <span
         aria-hidden="true"
-        className="inline-block h-9 w-9 rounded-full border border-foreground/10"
+        className="inline-block h-9 w-9 rounded-full border border-foreground/10 bg-background/70 backdrop-blur-md"
       />
     );
   }
@@ -22,7 +22,7 @@ export function ThemeToggle() {
       type="button"
       onClick={() => setTheme(isDark ? "light" : "dark")}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-foreground/10 text-foreground/80 transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-foreground/10 bg-background/70 text-foreground/80 backdrop-blur-md transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
     >
       {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
     </button>
