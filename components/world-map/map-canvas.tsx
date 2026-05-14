@@ -104,7 +104,10 @@ export function MapCanvas({ projection, theme }: MapCanvasProps) {
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: buildMapStyle(theme, countriesGeoJSON),
+      style: {
+        ...buildMapStyle(theme, countriesGeoJSON),
+        projection: { type: projection },
+      },
       center: [0, 25],
       zoom: 1.4,
       attributionControl: false,
@@ -112,18 +115,13 @@ export function MapCanvas({ projection, theme }: MapCanvasProps) {
       pitchWithRotate: false,
       touchZoomRotate: true,
       maxZoom: 6,
-      minZoom: 0.8,
+      minZoom: 0,
     });
 
     mapRef.current = map;
 
     map.on("load", () => {
       styleLoadedRef.current = true;
-      try {
-        map.setProjection({ type: projectionRef.current });
-      } catch {
-        // ignore — some browsers/contexts may not support globe yet
-      }
 
       map.addSource("airports", { type: "geojson", data: airportsFC() });
       map.addSource("arc-subsonic", { type: "geojson", data: emptyFC });
