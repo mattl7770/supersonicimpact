@@ -103,80 +103,93 @@ export function FlatCanvas({ theme }: FlatCanvasProps) {
           minZoom={1}
           maxZoom={1}
           translateExtent={[
-            [-size.w * 0.6, 0],
-            [size.w * 1.6, size.h],
+            [-size.w * 2.0, 0],
+            [size.w * 3.0, size.h],
           ]}
         >
-          <Geographies geography={countriesGeoJSON}>
-            {({ geographies }) =>
-              geographies.map((geo) => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill={landFill}
-                  stroke={landStroke}
-                  strokeWidth={0.4}
-                  style={{
-                    default: { outline: "none" },
-                    hover: { outline: "none", fill: landFill },
-                    pressed: { outline: "none" },
-                  }}
+          {/* Render the world three times side-by-side so dragging wraps. */}
+          {[-1, 0, 1].map((shift) => (
+            <g
+              key={`world-${shift}`}
+              transform={`translate(${shift * size.w}, 0)`}
+            >
+              <Geographies geography={countriesGeoJSON}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill={landFill}
+                      stroke={landStroke}
+                      strokeWidth={0.4}
+                      style={{
+                        default: { outline: "none" },
+                        hover: { outline: "none", fill: landFill },
+                        pressed: { outline: "none" },
+                      }}
+                    />
+                  ))
+                }
+              </Geographies>
+
+              {/* Faint continent + ocean labels for context */}
+              {FLAT_LABELS.map((label) => (
+                <Marker
+                  key={`${shift}-${label.text}`}
+                  coordinates={label.coords}
+                >
+                  <text
+                    textAnchor="middle"
+                    y={4}
+                    style={{
+                      fontFamily:
+                        "var(--font-geist-sans), system-ui, sans-serif",
+                      fontSize: label.kind === "continent" ? 10 : 8,
+                      fontWeight: label.kind === "continent" ? 600 : 400,
+                      fontStyle: label.kind === "ocean" ? "italic" : "normal",
+                      letterSpacing:
+                        label.kind === "continent" ? "0.18em" : "0.04em",
+                      fill:
+                        theme === "dark"
+                          ? "rgba(245,250,255,0.45)"
+                          : "rgba(40,50,60,0.45)",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {label.text}
+                  </text>
+                </Marker>
+              ))}
+
+              {/* Great-circle arcs */}
+              {arcSegments.map((segment, i) => (
+                <FlatArc
+                  key={`arc-${shift}-${i}-${origin?.iata}-${destination?.iata}`}
+                  points={segment}
+                  accent={accent}
+                  reducedMotion={isReducedMotion}
+                  supersonicMs={2400}
+                  subsonicMs={
+                    route
+                      ? 2400 * (route.subsonicHours / route.supersonicHours)
+                      : 4800
+                  }
                 />
-              ))
-            }
-          </Geographies>
+              ))}
 
-          {/* Faint continent + ocean labels for context */}
-          {FLAT_LABELS.map((label) => (
-            <Marker key={label.text} coordinates={label.coords}>
-              <text
-                textAnchor="middle"
-                y={4}
-                style={{
-                  fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-                  fontSize: label.kind === "continent" ? 10 : 8,
-                  fontWeight: label.kind === "continent" ? 600 : 400,
-                  fontStyle: label.kind === "ocean" ? "italic" : "normal",
-                  letterSpacing:
-                    label.kind === "continent" ? "0.18em" : "0.04em",
-                  fill:
-                    theme === "dark"
-                      ? "rgba(245,250,255,0.45)"
-                      : "rgba(40,50,60,0.45)",
-                  pointerEvents: "none",
-                }}
-              >
-                {label.text}
-              </text>
-            </Marker>
-          ))}
-
-          {/* Great-circle arcs: gray "subsonic" + glowing white "supersonic" */}
-          {arcSegments.map((segment, i) => (
-            <FlatArc
-              key={`arc-${i}-${origin?.iata}-${destination?.iata}`}
-              points={segment}
-              accent={accent}
-              reducedMotion={isReducedMotion}
-              durationMs={
-                route
-                  ? 2400 * (route.subsonicHours / route.supersonicHours)
-                  : 2400
-              }
-            />
-          ))}
-
-          {/* Airports */}
-          {airports.map((a) => (
-            <AirportMarker
-              key={a.iata}
-              airport={a}
-              isSelected={
-                origin?.iata === a.iata || destination?.iata === a.iata
-              }
-              accent={accent}
-              onClick={() => selectAirport(a)}
-            />
+              {/* Airports */}
+              {airports.map((a) => (
+                <AirportMarker
+                  key={`${shift}-${a.iata}`}
+                  airport={a}
+                  isSelected={
+                    origin?.iata === a.iata || destination?.iata === a.iata
+                  }
+                  accent={accent}
+                  onClick={() => selectAirport(a)}
+                />
+              ))}
+            </g>
           ))}
         </ZoomableGroup>
       </ComposableMap>
@@ -188,82 +201,59 @@ function FlatArc({
   points,
   accent,
   reducedMotion,
-  durationMs,
+  supersonicMs,
+  subsonicMs,
 }: {
   points: LngLat[];
   accent: string;
   reducedMotion: boolean;
-  durationMs: number;
+  supersonicMs: number;
+  subsonicMs: number;
 }) {
-  // Projection happens implicitly inside react-simple-maps' SVG by using
-  // <Marker coordinates>; for lines we use the raw projection via geoEquirectangular.
-  // We approximate by using a polyline since react-simple-maps' Line only takes
-  // 2 endpoints. So we build the points via the projection of the parent map.
-  // Easiest: render polyline points via SVG with manual projection
-  // matching geoEquirectangular: x = lng * (w/360) + w/2, y = -lat * (h/180) + h/2
-  // (parent map already applies the projection to children, so we need raw screen coords)
-  // For simplicity we use react-simple-maps' projection via the d3-geo helper inside the tree.
-
-  // Easier path: render each great-circle segment as a series of <Marker>-style
-  // anchored dots, OR a single <path> using the d3-geo path generator on the
-  // parent. Since we're inside <ComposableMap> we can use d3-geo paths via
-  // react-simple-maps' internal projection by emitting a <path> with d="..."
-  // — but react-simple-maps doesn't expose its projection. So we draw a polyline
-  // using simple linear lng/lat → svg-coord mapping for equirectangular.
-
-  // svg viewbox is 800x600 by default in ComposableMap; we instead pass width/height
-  // and projection scale so 1 unit lng = (w/2π/scale) px. Simpler: use raw lat/lng
-  // as svg coords inside <g> that's projected; react-simple-maps clips children.
-
-  // Pragmatic implementation: wrap polyline in <Marker> for each segment endpoint
-  // and connect via SVG line in absolute coords using equirectangular formula
-  // bound to the canvas size. For now we render the polyline coords directly
-  // in lng/lat space inside the ComposableMap — react-simple-maps projects child
-  // SVG elements automatically only for <Marker>/<Annotation>/<Graticule>. For
-  // arbitrary <path>/<polyline> we need projected coords.
-
-  // Fallback: use react-simple-maps' <Line>, which takes from/to coords and
-  // renders a great-circle arc between them. Each densified segment becomes
-  // a chained set of Lines. The lib's <Line> projects internally.
-
-  // We use a <g> of <Marker> wrappers to project each densified point into
-  // svg space, then draw a polyline through those projected screen coords.
-  // Simpler still: import <Line from="..." to="..."> and chain pairs.
-
-  // For now: render the segment as a chain of small Lines between consecutive points.
-  // Lines support strokeDasharray for the dot effect.
-
+  // Render the segment as a chain of small <Line> from-to pairs.
+  // react-simple-maps' <Line> projects its endpoints internally.
   return (
     <g>
-      {points.slice(0, -1).map((p, i) => {
-        const next = points[i + 1];
-        return (
-          <ArcSegment
-            key={i}
-            from={p}
-            to={next}
-            color="rgba(255,255,255,0.55)"
-            strokeWidth={1}
-            dashArray="3 4"
-            reducedMotion={reducedMotion}
-          />
-        );
-      })}
-      {points.slice(0, -1).map((p, i) => {
-        const next = points[i + 1];
-        return (
-          <ArcSegment
-            key={`s-${i}`}
-            from={p}
-            to={next}
-            color={accent}
-            strokeWidth={1.6}
-            reducedMotion={reducedMotion}
-          />
-        );
-      })}
-      {/* moving dot, animated with framer-motion along the path */}
-      <ArcDot points={points} color={accent} durationMs={durationMs} reducedMotion={reducedMotion} />
+      {/* Subsonic line: gray, dashed */}
+      {points.slice(0, -1).map((p, i) => (
+        <ArcSegment
+          key={i}
+          from={p}
+          to={points[i + 1]}
+          color="rgba(255,255,255,0.55)"
+          strokeWidth={1}
+          dashArray="3 4"
+          reducedMotion={reducedMotion}
+        />
+      ))}
+      {/* Supersonic line: accent, solid */}
+      {points.slice(0, -1).map((p, i) => (
+        <ArcSegment
+          key={`s-${i}`}
+          from={p}
+          to={points[i + 1]}
+          color={accent}
+          strokeWidth={1.6}
+          reducedMotion={reducedMotion}
+        />
+      ))}
+      {/* Subsonic dot — slower, gray */}
+      <ArcDot
+        points={points}
+        color="rgba(255,255,255,0.85)"
+        radius={2}
+        durationMs={subsonicMs}
+        reducedMotion={reducedMotion}
+      />
+      {/* Supersonic dot — faster, accent (bigger so it reads as the "fast" one) */}
+      <ArcDot
+        points={points}
+        color={accent}
+        radius={3.5}
+        durationMs={supersonicMs}
+        reducedMotion={reducedMotion}
+        glow
+      />
     </g>
   );
 }
@@ -299,11 +289,15 @@ function ArcDot({
   color,
   durationMs,
   reducedMotion,
+  radius = 2.5,
+  glow = false,
 }: {
   points: LngLat[];
   color: string;
   durationMs: number;
   reducedMotion: boolean;
+  radius?: number;
+  glow?: boolean;
 }) {
   const [progress, setProgress] = useState(reducedMotion ? 1 : 0);
   useEffect(() => {
@@ -341,11 +335,16 @@ function ArcDot({
 
   return (
     <Marker coordinates={point}>
+      {glow && (
+        <circle r={radius * 2.6} fill={color} opacity={0.22} />
+      )}
       <motion.circle
-        r={2.5}
+        r={radius}
         fill={color}
         initial={{ opacity: 0.6 }}
         animate={{ opacity: 1 }}
+        stroke="rgba(255,255,255,0.85)"
+        strokeWidth={glow ? 0.6 : 0}
       />
     </Marker>
   );

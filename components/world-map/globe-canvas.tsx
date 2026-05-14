@@ -56,11 +56,14 @@ const CITY_LABELS: LabelDatum[] = airports
 function buildGlobeMaterial(): THREE.ShaderMaterial {
   const loader = new THREE.TextureLoader();
   const dayTexture = loader.load("/earth/earth-day.jpg");
+  const nightTexture = loader.load("/earth/earth-night.jpg");
   dayTexture.colorSpace = THREE.SRGBColorSpace;
+  nightTexture.colorSpace = THREE.SRGBColorSpace;
 
   return new THREE.ShaderMaterial({
     uniforms: {
       dayTexture: { value: dayTexture },
+      nightTexture: { value: nightTexture },
       sunDirection: { value: new THREE.Vector3(1, 0, 0) },
     },
     vertexShader: `
@@ -74,17 +77,37 @@ function buildGlobeMaterial(): THREE.ShaderMaterial {
     `,
     fragmentShader: `
       uniform sampler2D dayTexture;
+      uniform sampler2D nightTexture;
       uniform vec3 sunDirection;
       varying vec2 vUv;
       varying vec3 vWorldNormal;
+
+      // Apple-Maps-ish color grade: saturation boost + mild contrast + cool
+      // tint on water (low-saturation, blue-dominant pixels).
+      vec3 grade(vec3 src) {
+        // Luminance + saturation push.
+        vec3 lum = vec3(dot(src, vec3(0.299, 0.587, 0.114)));
+        vec3 sat = mix(lum, src, 1.45);
+        // Mild S-curve contrast.
+        sat = clamp((sat - 0.5) * 1.12 + 0.5, 0.0, 1.0);
+        // Detect ocean-ish pixels (dim, blue-dominant) and tint them
+        // toward the Apple-Maps deep blue.
+        float maxRG = max(sat.r, sat.g);
+        float oceanish = smoothstep(0.04, 0.32, sat.b - maxRG);
+        vec3 oceanColor = vec3(0.10, 0.36, 0.66);
+        sat = mix(sat, mix(sat, oceanColor, 0.55), oceanish);
+        return sat;
+      }
+
       void main() {
-        // Apple-Maps style: continuous day texture with a gentle dim on the
-        // night side instead of city-lights. Subtle terminator.
         float intensity = dot(normalize(vWorldNormal), normalize(sunDirection));
-        float dayFactor = smoothstep(-0.35, 0.4, intensity);
-        vec3 dayColor = texture2D(dayTexture, vUv).rgb;
-        // Slightly cool-tinted dim of the same surface on the night side.
-        vec3 nightColor = dayColor * vec3(0.42, 0.47, 0.55);
+        // Soft terminator transition.
+        float dayFactor = smoothstep(-0.08, 0.22, intensity);
+
+        vec3 dayColor = grade(texture2D(dayTexture, vUv).rgb);
+        // Boost the night lights so they read as real cities.
+        vec3 nightColor = texture2D(nightTexture, vUv).rgb * 1.4;
+
         vec3 color = mix(nightColor, dayColor, dayFactor);
         gl_FragColor = vec4(color, 1.0);
       }
@@ -187,11 +210,11 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         dashAnimateTime: 0,
         layer: "supersonic-main",
       },
-      // Supersonic moving dot
+      // Supersonic moving dot (accent blue — the fast one)
       {
         ...common,
-        color: "#ffffff",
-        stroke: 0.85,
+        color: accent,
+        stroke: 1.1,
         altitude: 0.16,
         dashLength: 0.04,
         dashGap: 0.96,
@@ -223,7 +246,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         layer: "subsonic-dot",
       },
     ];
-  }, [origin, destination, route, isReducedMotion]);
+  }, [origin, destination, route, isReducedMotion, accent]);
 
   // Camera frames the route midpoint when both endpoints are set.
   useEffect(() => {
