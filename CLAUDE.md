@@ -12,7 +12,7 @@ An interactive website that translates the abstract value of supersonic commerci
 
 ## Stack (planned)
 
-- **Next.js 15** — App Router, for SSR/SEO and the React Server Components story
+- **Next.js 16** — App Router, for SSR/SEO and the React Server Components story
 - **TypeScript** — strict mode
 - **Tailwind CSS** — utility-first, mobile-first
 - **Framer Motion** — animated clocks, route arcs, and the "premium" feel
@@ -61,3 +61,6 @@ Boom Overture is a forward-looking aircraft. Do not present projected figures as
 - [`ROADMAP.md`](ROADMAP.md) — phased feature plan
 - [`docs/methodology.md`](docs/methodology.md) — data, assumptions, formulas
 - [`docs/design.md`](docs/design.md) — visual & UX direction
+- [`AGENTS.md`](AGENTS.md) — Next.js 16 breaking-change notice from create-next-app
+
+@AGENTS.md

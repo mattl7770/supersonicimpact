@@ -2,7 +2,7 @@
 
 > Explore the real-world impact of supersonic commercial flight.
 
-**Status:** 🚧 Pre-scaffold — documentation phase
+**Status:** 🚧 Scaffold landed — feature work in progress
 
 An interactive website that turns abstract claims about supersonic flight ("Mach 1.7", "half the flight time") into intuitive, visual experiences: side-by-side route comparisons, personal time-value calculators, and an economic-impact simulator. The first aircraft modeled is **Boom Supersonic's Overture**; more will follow.
 
@@ -35,10 +35,10 @@ See [`ROADMAP.md`](ROADMAP.md) for full detail.
 
 | Layer | Choice |
 |------|--------|
-| Framework | Next.js 15 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Language | TypeScript (strict) |
 | Styling | Tailwind CSS |
-| Charts | Recharts (or Chart.js — finalized at scaffold) |
+| Charts | Recharts |
 | Animation | Framer Motion |
 | Icons | lucide-react |
 | Package manager | pnpm |
@@ -46,14 +46,14 @@ See [`ROADMAP.md`](ROADMAP.md) for full detail.
 
 ## Getting started
 
-> The Next.js app has **not yet been scaffolded**. The commands below describe what the workflow *will* be once the scaffold session is complete.
-
 ```bash
 pnpm install
 pnpm dev          # http://localhost:3000
 pnpm build
 pnpm lint
 ```
+
+Requires Node 18.18+ (Node 20+ recommended) and pnpm.
 
 ## Methodology & data sources
 
@@ -86,4 +86,4 @@ MIT — see [LICENSE](LICENSE).
 
 ---
 
-Built by Timmy as a portfolio project demonstrating interactive economic modeling.
+Built by Matt as a portfolio project demonstrating interactive economic modeling.
