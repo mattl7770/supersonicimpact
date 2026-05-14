@@ -3,11 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import * as THREE from "three";
-import { geoEquirectangular, geoPath } from "d3-geo";
-import { feature } from "topojson-client";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore world-atlas ships .json without types
-import worldAtlas from "world-atlas/countries-110m.json";
 import type { GlobeMethods } from "react-globe.gl";
 
 import { MAJOR_HUBS, airports, type Airport } from "@/lib/airports";
@@ -19,9 +14,6 @@ import { formatHours } from "@/lib/format";
 import { getSunDirection } from "@/lib/sun";
 
 import { MapPlaceholder } from "./placeholder";
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const countriesGeoJSON = feature(worldAtlas as any, (worldAtlas as any).objects.countries) as any;
 
 const Globe = dynamic(() => import("react-globe.gl"), {
   ssr: false,
@@ -49,110 +41,23 @@ type ArcDatum = {
   layer: "halo" | "supersonic-main" | "supersonic-dot" | "subsonic-main" | "subsonic-dot";
 };
 
-type LabelKind = "continent" | "ocean" | "city";
-
 type LabelDatum = {
   lat: number;
   lng: number;
   text: string;
-  kind: LabelKind;
 };
 
 const SUPERSONIC_DRAW_MS = 2400;
 
-const CONTINENT_LABELS: LabelDatum[] = [
-  { lat: 45, lng: -100, text: "NORTH AMERICA", kind: "continent" },
-  { lat: -15, lng: -60, text: "SOUTH AMERICA", kind: "continent" },
-  { lat: 35, lng: 95, text: "ASIA", kind: "continent" },
-  { lat: 5, lng: 20, text: "AFRICA", kind: "continent" },
-  { lat: 52, lng: 18, text: "EUROPE", kind: "continent" },
-  { lat: -25, lng: 135, text: "AUSTRALIA", kind: "continent" },
-];
-
-const OCEAN_LABELS: LabelDatum[] = [
-  { lat: 78, lng: 0, text: "Arctic Ocean", kind: "ocean" },
-  { lat: 35, lng: -40, text: "North Atlantic Ocean", kind: "ocean" },
-  { lat: -25, lng: -20, text: "South Atlantic Ocean", kind: "ocean" },
-  { lat: 35, lng: -160, text: "North Pacific Ocean", kind: "ocean" },
-  { lat: -25, lng: -130, text: "South Pacific Ocean", kind: "ocean" },
-  { lat: -15, lng: 80, text: "Indian Ocean", kind: "ocean" },
-];
-
 const CITY_LABELS: LabelDatum[] = airports
   .filter((a) => MAJOR_HUBS.has(a.iata))
-  .map((a) => ({
-    lat: a.lat,
-    lng: a.lng,
-    text: a.city,
-    kind: "city" as const,
-  }));
-
-const ALL_LABELS: LabelDatum[] = [
-  ...CONTINENT_LABELS,
-  ...OCEAN_LABELS,
-  ...CITY_LABELS,
-];
-
-/**
- * Procedurally render a stylized "Apple Maps" Earth texture into a canvas:
- * vibrant green continents over a deep-blue ocean, drawn from world-atlas
- * country geometries via d3-geo. Used as the day side of the globe shader.
- */
-function buildCartographicTexture(): THREE.CanvasTexture {
-  const W = 2048;
-  const H = 1024;
-  const canvas = document.createElement("canvas");
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return new THREE.CanvasTexture(canvas);
-
-  // Deep ocean base.
-  ctx.fillStyle = "#2974c4";
-  ctx.fillRect(0, 0, W, H);
-
-  // Very subtle vertical gradient to hint at light falloff toward the poles.
-  const grad = ctx.createLinearGradient(0, 0, 0, H);
-  grad.addColorStop(0, "rgba(255,255,255,0.05)");
-  grad.addColorStop(0.5, "rgba(255,255,255,0)");
-  grad.addColorStop(1, "rgba(255,255,255,0.04)");
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  // Equirectangular projection sized exactly to the texture.
-  const projection = geoEquirectangular()
-    .scale(W / (2 * Math.PI))
-    .translate([W / 2, H / 2]);
-  const path = geoPath(projection, ctx);
-
-  // Continents fill: vibrant Apple-Maps green.
-  ctx.fillStyle = "#7ec57a";
-  for (const f of countriesGeoJSON.features) {
-    ctx.beginPath();
-    path(f);
-    ctx.fill();
-  }
-
-  // Subtle darker stroke on coastlines.
-  ctx.strokeStyle = "rgba(40, 90, 50, 0.35)";
-  ctx.lineWidth = 0.6;
-  for (const f of countriesGeoJSON.features) {
-    ctx.beginPath();
-    path(f);
-    ctx.stroke();
-  }
-
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 4;
-  texture.needsUpdate = true;
-  return texture;
-}
+  .map((a) => ({ lat: a.lat, lng: a.lng, text: a.city }));
 
 function buildGlobeMaterial(): THREE.ShaderMaterial {
-  const dayTexture = buildCartographicTexture();
   const loader = new THREE.TextureLoader();
+  const dayTexture = loader.load("/earth/earth-day.jpg");
   const nightTexture = loader.load("/earth/earth-night.jpg");
+  dayTexture.colorSpace = THREE.SRGBColorSpace;
   nightTexture.colorSpace = THREE.SRGBColorSpace;
 
   return new THREE.ShaderMaterial({
@@ -178,10 +83,10 @@ function buildGlobeMaterial(): THREE.ShaderMaterial {
       varying vec3 vWorldNormal;
       void main() {
         float intensity = dot(normalize(vWorldNormal), normalize(sunDirection));
-        // Soft terminator transition.
+        // Soft terminator transition over a ~0.3 dot-product band.
         float dayFactor = smoothstep(-0.08, 0.22, intensity);
         vec3 dayColor = texture2D(dayTexture, vUv).rgb;
-        vec3 nightColor = texture2D(nightTexture, vUv).rgb * 1.45;
+        vec3 nightColor = texture2D(nightTexture, vUv).rgb * 1.25;
         vec3 color = mix(nightColor, dayColor, dayFactor);
         gl_FragColor = vec4(color, 1.0);
       }
@@ -392,16 +297,16 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
               containerRef.current.style.cursor = d ? "pointer" : "";
             }
           }}
-          // Apple-Maps-style labels via HTML overlays (so we can use
-          // text-shadow for the soft black outline / glow).
-          htmlElementsData={ALL_LABELS}
-          htmlLat="lat"
-          htmlLng="lng"
-          htmlAltitude={0.012}
-          htmlElement={(d: object) => {
-            const label = d as LabelDatum;
-            return buildLabelElement(label);
-          }}
+          // City labels
+          labelsData={CITY_LABELS}
+          labelLat="lat"
+          labelLng="lng"
+          labelText="text"
+          labelSize={0.4}
+          labelDotRadius={0}
+          labelColor={() => "rgba(255,255,255,0.65)"}
+          labelResolution={2}
+          labelAltitude={0.012}
           // Arcs
           arcsData={arcs}
           arcStartLat="startLat"
@@ -431,41 +336,4 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       )}
     </div>
   );
-}
-
-const LABEL_SHADOW =
-  "0 0 4px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.7), 0 0 1px rgba(0,0,0,1)";
-const LABEL_FONT =
-  "var(--font-geist-sans), -apple-system, BlinkMacSystemFont, system-ui, sans-serif";
-
-function buildLabelElement(d: LabelDatum): HTMLElement {
-  const el = document.createElement("div");
-  el.style.pointerEvents = "none";
-  el.style.whiteSpace = "nowrap";
-  el.style.color = "#ffffff";
-  el.style.fontFamily = LABEL_FONT;
-  el.style.textShadow = LABEL_SHADOW;
-  el.style.userSelect = "none";
-  el.style.transform = "translate(-50%, -50%)";
-  el.textContent = d.text;
-
-  if (d.kind === "continent") {
-    el.style.fontSize = "13px";
-    el.style.fontWeight = "700";
-    el.style.letterSpacing = "0.22em";
-    el.style.textTransform = "uppercase";
-  } else if (d.kind === "ocean") {
-    el.style.fontSize = "11px";
-    el.style.fontWeight = "500";
-    el.style.fontStyle = "italic";
-    el.style.letterSpacing = "0.06em";
-    el.style.opacity = "0.85";
-  } else {
-    el.style.fontSize = "10px";
-    el.style.fontWeight = "500";
-    el.style.letterSpacing = "0.02em";
-    el.style.opacity = "0.92";
-  }
-
-  return el;
 }
