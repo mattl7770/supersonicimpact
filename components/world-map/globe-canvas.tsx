@@ -56,14 +56,11 @@ const CITY_LABELS: LabelDatum[] = airports
 function buildGlobeMaterial(): THREE.ShaderMaterial {
   const loader = new THREE.TextureLoader();
   const dayTexture = loader.load("/earth/earth-day.jpg");
-  const nightTexture = loader.load("/earth/earth-night.jpg");
   dayTexture.colorSpace = THREE.SRGBColorSpace;
-  nightTexture.colorSpace = THREE.SRGBColorSpace;
 
   return new THREE.ShaderMaterial({
     uniforms: {
       dayTexture: { value: dayTexture },
-      nightTexture: { value: nightTexture },
       sunDirection: { value: new THREE.Vector3(1, 0, 0) },
     },
     vertexShader: `
@@ -77,16 +74,17 @@ function buildGlobeMaterial(): THREE.ShaderMaterial {
     `,
     fragmentShader: `
       uniform sampler2D dayTexture;
-      uniform sampler2D nightTexture;
       uniform vec3 sunDirection;
       varying vec2 vUv;
       varying vec3 vWorldNormal;
       void main() {
+        // Apple-Maps style: continuous day texture with a gentle dim on the
+        // night side instead of city-lights. Subtle terminator.
         float intensity = dot(normalize(vWorldNormal), normalize(sunDirection));
-        // Soft terminator transition over a ~0.3 dot-product band.
-        float dayFactor = smoothstep(-0.08, 0.22, intensity);
+        float dayFactor = smoothstep(-0.35, 0.4, intensity);
         vec3 dayColor = texture2D(dayTexture, vUv).rgb;
-        vec3 nightColor = texture2D(nightTexture, vUv).rgb * 1.25;
+        // Slightly cool-tinted dim of the same surface on the night side.
+        vec3 nightColor = dayColor * vec3(0.42, 0.47, 0.55);
         vec3 color = mix(nightColor, dayColor, dayFactor);
         gl_FragColor = vec4(color, 1.0);
       }
@@ -194,7 +192,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         ...common,
         color: "#ffffff",
         stroke: 0.85,
-        altitude: 0.32,
+        altitude: 0.16,
         dashLength: 0.04,
         dashGap: 0.96,
         dashInitialGap: 1,
@@ -217,7 +215,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         ...common,
         color: "rgba(255,255,255,0.85)",
         stroke: 0.65,
-        altitude: 0.18,
+        altitude: 0.09,
         dashLength: 0.035,
         dashGap: 0.965,
         dashInitialGap: 1,
@@ -319,7 +317,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
             const a = d as ArcDatum;
             return a.altitude ?? null;
           }}
-          arcAltitudeAutoScale={0.45}
+          arcAltitudeAutoScale={0.22}
           arcDashLength="dashLength"
           arcDashGap="dashGap"
           arcDashInitialGap="dashInitialGap"

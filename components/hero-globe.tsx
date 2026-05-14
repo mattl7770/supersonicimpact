@@ -63,7 +63,7 @@ export function HeroGlobe() {
         {bothSelected && (
           <div
             key="left-panel"
-            className="pointer-events-none absolute left-0 top-24 z-20 flex justify-start px-4 lg:inset-y-0 lg:top-auto lg:items-center lg:px-6 lg:pb-32"
+            className="pointer-events-none absolute left-0 top-24 z-20 flex justify-start px-4 lg:inset-y-0 lg:top-0 lg:items-center lg:px-6 lg:pb-24"
           >
             <div className="pointer-events-auto">
               <RouteDetailsPanel />
@@ -73,7 +73,7 @@ export function HeroGlobe() {
         {bothSelected && (
           <div
             key="right-panel"
-            className="pointer-events-none absolute right-0 top-24 z-20 hidden justify-end px-4 lg:absolute lg:inset-y-0 lg:top-auto lg:flex lg:items-center lg:px-6 lg:pb-32"
+            className="pointer-events-none absolute right-0 top-24 z-20 hidden justify-end px-4 lg:inset-y-0 lg:top-0 lg:flex lg:items-center lg:px-6 lg:pb-24"
           >
             <div className="pointer-events-auto">
               <AircraftPanel />

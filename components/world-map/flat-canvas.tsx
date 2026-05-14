@@ -8,6 +8,7 @@ import {
   Geography,
   Line,
   Marker,
+  ZoomableGroup,
 } from "react-simple-maps";
 import { feature } from "topojson-client";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -20,7 +21,6 @@ import { useAircraft } from "@/lib/aircraft-context";
 import { buildRouteForPair } from "@/lib/flight-time";
 import { routes } from "@/data/routes";
 import { greatCircleArc, splitAtAntimeridian, type LngLat } from "@/lib/geo";
-import { formatHours } from "@/lib/format";
 
 type FlatCanvasProps = { theme: "light" | "dark" };
 
@@ -98,86 +98,88 @@ export function FlatCanvas({ theme }: FlatCanvasProps) {
         projectionConfig={{ scale: size.w / 6.28 }}
         style={{ width: "100%", height: "100%" }}
       >
-        <Geographies geography={countriesGeoJSON}>
-          {({ geographies }) =>
-            geographies.map((geo) => (
-              <Geography
-                key={geo.rsmKey}
-                geography={geo}
-                fill={landFill}
-                stroke={landStroke}
-                strokeWidth={0.4}
-                style={{
-                  default: { outline: "none" },
-                  hover: { outline: "none", fill: landFill },
-                  pressed: { outline: "none" },
-                }}
-              />
-            ))
-          }
-        </Geographies>
-
-        {/* Faint continent + ocean labels for context */}
-        {FLAT_LABELS.map((label) => (
-          <Marker key={label.text} coordinates={label.coords}>
-            <text
-              textAnchor="middle"
-              y={4}
-              style={{
-                fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
-                fontSize: label.kind === "continent" ? 10 : 8,
-                fontWeight: label.kind === "continent" ? 600 : 400,
-                fontStyle: label.kind === "ocean" ? "italic" : "normal",
-                letterSpacing:
-                  label.kind === "continent" ? "0.18em" : "0.04em",
-                fill:
-                  theme === "dark"
-                    ? "rgba(245,250,255,0.45)"
-                    : "rgba(40,50,60,0.45)",
-                pointerEvents: "none",
-              }}
-            >
-              {label.text}
-            </text>
-          </Marker>
-        ))}
-
-        {/* Great-circle arcs: gray "subsonic" + glowing white "supersonic" */}
-        {arcSegments.map((segment, i) => (
-          <FlatArc
-            key={`arc-${i}-${origin?.iata}-${destination?.iata}`}
-            points={segment}
-            accent={accent}
-            reducedMotion={isReducedMotion}
-            durationMs={
-              route ? 2400 * (route.subsonicHours / route.supersonicHours) : 2400
-            }
-          />
-        ))}
-
-        {/* Airports */}
-        {airports.map((a) => (
-          <AirportMarker
-            key={a.iata}
-            airport={a}
-            isSelected={
-              origin?.iata === a.iata || destination?.iata === a.iata
-            }
-            accent={accent}
-            onClick={() => selectAirport(a)}
-          />
-        ))}
-      </ComposableMap>
-
-      {/* Floating saved-hours label */}
-      {route && (
-        <div
-          className="pointer-events-none absolute right-6 top-6 rounded-full bg-accent px-3 py-1 text-[11px] font-semibold text-background shadow-lg shadow-accent/30"
-          style={{ background: accent, color: bg }}
+        <ZoomableGroup
+          zoom={1}
+          minZoom={1}
+          maxZoom={1}
+          translateExtent={[
+            [-size.w * 0.6, 0],
+            [size.w * 1.6, size.h],
+          ]}
         >
-          Saved {formatHours(route.subsonicHours - route.supersonicHours)}
-        </div>
-      )}
+          <Geographies geography={countriesGeoJSON}>
+            {({ geographies }) =>
+              geographies.map((geo) => (
+                <Geography
+                  key={geo.rsmKey}
+                  geography={geo}
+                  fill={landFill}
+                  stroke={landStroke}
+                  strokeWidth={0.4}
+                  style={{
+                    default: { outline: "none" },
+                    hover: { outline: "none", fill: landFill },
+                    pressed: { outline: "none" },
+                  }}
+                />
+              ))
+            }
+          </Geographies>
+
+          {/* Faint continent + ocean labels for context */}
+          {FLAT_LABELS.map((label) => (
+            <Marker key={label.text} coordinates={label.coords}>
+              <text
+                textAnchor="middle"
+                y={4}
+                style={{
+                  fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+                  fontSize: label.kind === "continent" ? 10 : 8,
+                  fontWeight: label.kind === "continent" ? 600 : 400,
+                  fontStyle: label.kind === "ocean" ? "italic" : "normal",
+                  letterSpacing:
+                    label.kind === "continent" ? "0.18em" : "0.04em",
+                  fill:
+                    theme === "dark"
+                      ? "rgba(245,250,255,0.45)"
+                      : "rgba(40,50,60,0.45)",
+                  pointerEvents: "none",
+                }}
+              >
+                {label.text}
+              </text>
+            </Marker>
+          ))}
+
+          {/* Great-circle arcs: gray "subsonic" + glowing white "supersonic" */}
+          {arcSegments.map((segment, i) => (
+            <FlatArc
+              key={`arc-${i}-${origin?.iata}-${destination?.iata}`}
+              points={segment}
+              accent={accent}
+              reducedMotion={isReducedMotion}
+              durationMs={
+                route
+                  ? 2400 * (route.subsonicHours / route.supersonicHours)
+                  : 2400
+              }
+            />
+          ))}
+
+          {/* Airports */}
+          {airports.map((a) => (
+            <AirportMarker
+              key={a.iata}
+              airport={a}
+              isSelected={
+                origin?.iata === a.iata || destination?.iata === a.iata
+              }
+              accent={accent}
+              onClick={() => selectAirport(a)}
+            />
+          ))}
+        </ZoomableGroup>
+      </ComposableMap>
     </div>
   );
 }
