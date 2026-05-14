@@ -26,20 +26,20 @@ const SelectionContext = createContext<SelectionContextValue | null>(null);
 
 type SelectionProviderProps = {
   children: ReactNode;
-  defaultOrigin?: string;
-  defaultDestination?: string;
+  defaultOrigin?: string | null;
+  defaultDestination?: string | null;
 };
 
 export function SelectionProvider({
   children,
-  defaultOrigin = "JFK",
-  defaultDestination = "LHR",
+  defaultOrigin = null,
+  defaultDestination = null,
 }: SelectionProviderProps) {
-  const [origin, setOrigin] = useState<Airport | null>(
-    () => getAirportByIata(defaultOrigin) ?? null,
+  const [origin, setOrigin] = useState<Airport | null>(() =>
+    defaultOrigin ? getAirportByIata(defaultOrigin) ?? null : null,
   );
-  const [destination, setDestination] = useState<Airport | null>(
-    () => getAirportByIata(defaultDestination) ?? null,
+  const [destination, setDestination] = useState<Airport | null>(() =>
+    defaultDestination ? getAirportByIata(defaultDestination) ?? null : null,
   );
 
   const setPair = useCallback((o: Airport, d: Airport) => {

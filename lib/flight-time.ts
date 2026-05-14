@@ -1,20 +1,32 @@
 import { haversineNm } from "./geo";
 import type { Route } from "./types";
 import type { Airport } from "./airports";
+import { KTS_PER_MACH } from "./aircraft";
+import type { AircraftConfig } from "./aircraft-context";
 
-const OVERTURE_RANGE_NM = 4250;
 const GROUND_OVERHEAD_H = 0.4;
 const CLIMB_DESCENT_H = 0.5;
 const TECH_STOP_H = 1.5;
 const CRUISE_NM_DEDUCTION = 250;
-const SUPERSONIC_KTS = 980;
 const SUBSONIC_CRUISE_KTS = 480;
 const SUBSONIC_OVERHEAD_H = 1.5;
+const OVERTURE_RANGE_NM = 4250;
 
-export function computeSupersonicHours(distanceNm: number): number {
-  const techStop = distanceNm > OVERTURE_RANGE_NM ? TECH_STOP_H : 0;
+const OVERTURE_DEFAULT: AircraftConfig = {
+  topMach: 1.7,
+  rangeNm: 4250,
+  boomlessCruiseMach: 1.3,
+  passengers: 80,
+};
+
+export function computeSupersonicHours(
+  distanceNm: number,
+  config: AircraftConfig = OVERTURE_DEFAULT,
+): number {
+  const cruiseKts = config.topMach * KTS_PER_MACH;
+  const techStop = distanceNm > config.rangeNm ? TECH_STOP_H : 0;
   const cruise =
-    Math.max(0, distanceNm - CRUISE_NM_DEDUCTION) / SUPERSONIC_KTS;
+    Math.max(0, distanceNm - CRUISE_NM_DEDUCTION) / Math.max(1, cruiseKts);
   return GROUND_OVERHEAD_H + CLIMB_DESCENT_H + techStop + cruise;
 }
 
@@ -35,17 +47,34 @@ function curatedKey(origin: string, destination: string): string {
   return `${origin.toLowerCase()}-${destination.toLowerCase()}`;
 }
 
+function isOvertureDefault(config: AircraftConfig): boolean {
+  return (
+    Math.abs(config.topMach - OVERTURE_DEFAULT.topMach) < 0.01 &&
+    Math.abs(config.rangeNm - OVERTURE_DEFAULT.rangeNm) < 50 &&
+    Math.abs(config.boomlessCruiseMach - OVERTURE_DEFAULT.boomlessCruiseMach) <
+      0.01
+  );
+}
+
 /**
  * Returns a Route for the given origin/destination airport pair.
- * If a curated route exists in `curated` (either direction), reuse its hand-set
- * subsonic/supersonic hours. Otherwise synthesize one from haversine + formulas.
+ *
+ * - If `aircraft` matches stock Overture and a curated route exists, reuse
+ *   its hand-set supersonic/subsonic hours (authoritative).
+ * - Otherwise, always recompute from formulas. Curated values would be wrong
+ *   for non-stock aircraft (e.g. Concorde, custom slider settings).
  */
 export function buildRouteForPair(
   origin: Airport,
   destination: Airport,
   curated: Route[],
+  config: AircraftConfig = OVERTURE_DEFAULT,
 ): Route {
-  const curatedRoute = curated.find(
+  const distanceNm = Math.round(
+    haversineNm([origin.lng, origin.lat], [destination.lng, destination.lat]),
+  );
+
+  const curatedMatch = curated.find(
     (r) =>
       curatedKey(r.origin.iata, r.destination.iata) ===
         curatedKey(origin.iata, destination.iata) ||
@@ -53,25 +82,22 @@ export function buildRouteForPair(
         curatedKey(origin.iata, destination.iata),
   );
 
-  if (curatedRoute) {
+  if (curatedMatch && isOvertureDefault(config)) {
     const flipped =
-      curatedRoute.origin.iata !== origin.iata
+      curatedMatch.origin.iata !== origin.iata
         ? {
-            ...curatedRoute,
+            ...curatedMatch,
             id: `${origin.iata}-${destination.iata}`.toLowerCase(),
             origin: airportToCity(origin),
             destination: airportToCity(destination),
           }
-        : curatedRoute;
+        : curatedMatch;
     return flipped;
   }
 
-  const distanceNm = Math.round(
-    haversineNm([origin.lng, origin.lat], [destination.lng, destination.lat]),
-  );
-  const supersonicHours =
-    Math.round(computeSupersonicHours(distanceNm) * 4) / 4;
-  const subsonicHours = Math.round(computeSubsonicHours(distanceNm) * 4) / 4;
+  const supersonicHours = roundQ(computeSupersonicHours(distanceNm, config));
+  const subsonicHours = roundQ(computeSubsonicHours(distanceNm));
+  const beyondRange = distanceNm > config.rangeNm;
 
   return {
     id: `${origin.iata}-${destination.iata}`.toLowerCase(),
@@ -80,15 +106,22 @@ export function buildRouteForPair(
     distanceNm,
     subsonicHours,
     supersonicHours,
-    techStop: distanceNm > OVERTURE_RANGE_NM,
-    notes:
-      distanceNm > OVERTURE_RANGE_NM
-        ? "Beyond Overture's 4,250 NM range — assumes one technical stop. Estimated, not a curated route."
-        : "Estimated — not a curated route. See methodology for the formulas used.",
+    techStop: beyondRange,
+    notes: beyondRange
+      ? `Beyond this aircraft's ${config.rangeNm.toLocaleString()} NM range — assumes one technical stop.`
+      : undefined,
   };
 }
 
-export function isCurated(origin: string, destination: string, curated: Route[]): boolean {
+function roundQ(h: number): number {
+  return Math.round(h * 4) / 4;
+}
+
+export function isCurated(
+  origin: string,
+  destination: string,
+  curated: Route[],
+): boolean {
   return curated.some(
     (r) =>
       curatedKey(r.origin.iata, r.destination.iata) ===
@@ -97,3 +130,5 @@ export function isCurated(origin: string, destination: string, curated: Route[])
         curatedKey(origin, destination),
   );
 }
+
+export { OVERTURE_RANGE_NM };

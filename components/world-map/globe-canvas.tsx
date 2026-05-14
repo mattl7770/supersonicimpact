@@ -2,17 +2,19 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import * as THREE from "three";
 import type { GlobeMethods } from "react-globe.gl";
 
 import { airports, type Airport } from "@/lib/airports";
 import { useSelection } from "@/lib/selection-context";
+import { useAircraft } from "@/lib/aircraft-context";
 import { buildRouteForPair } from "@/lib/flight-time";
 import { routes } from "@/data/routes";
 import { formatHours } from "@/lib/format";
+import { getSunDirection } from "@/lib/sun";
 
 import { MapPlaceholder } from "./placeholder";
 
-// react-globe.gl reads `window` on import, so we MUST ssr:false it.
 const Globe = dynamic(() => import("react-globe.gl"), {
   ssr: false,
   loading: () => <MapPlaceholder />,
@@ -29,32 +31,88 @@ type ArcDatum = {
   endLng: number;
   color: string;
   stroke: number;
+  altitude?: number;
   dashLength: number;
   dashGap: number;
+  dashInitialGap: number;
   dashAnimateTime: number;
+  routeLabel: string;
+  savedLabel: string;
+  layer: "halo" | "supersonic-main" | "supersonic-dot" | "subsonic-main" | "subsonic-dot";
 };
-
-type LabelStage = "supersonic" | "final";
 
 type LabelDatum = {
   lat: number;
   lng: number;
-  supersonicHours: number;
-  subsonicHours: number;
-  stage: LabelStage;
-  accent: string;
-  fg: string;
-  bg: string;
+  text: string;
 };
 
-const SUPERSONIC_MS = 2400;
+const SUPERSONIC_DRAW_MS = 2400;
+
+// Subset of airports we tag as "major hubs" for big labels on the globe.
+const MAJOR_HUBS = new Set([
+  "JFK", "LAX", "SFO", "ORD", "SEA", "YVR", "MEX",
+  "LHR", "CDG", "FRA", "MAD", "FCO", "AMS", "IST",
+  "DXB", "DOH",
+  "HND", "ICN", "PEK", "PVG", "HKG", "SIN", "BKK",
+  "BOM", "DEL",
+  "SYD", "MEL", "AKL",
+  "GRU", "EZE",
+  "JNB", "CAI", "NBO",
+]);
+
+const CITY_LABELS: LabelDatum[] = airports
+  .filter((a) => MAJOR_HUBS.has(a.iata))
+  .map((a) => ({ lat: a.lat, lng: a.lng, text: a.city }));
+
+function buildGlobeMaterial(): THREE.ShaderMaterial {
+  const loader = new THREE.TextureLoader();
+  const dayTexture = loader.load("/earth/earth-day.jpg");
+  const nightTexture = loader.load("/earth/earth-night.jpg");
+  dayTexture.colorSpace = THREE.SRGBColorSpace;
+  nightTexture.colorSpace = THREE.SRGBColorSpace;
+
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      dayTexture: { value: dayTexture },
+      nightTexture: { value: nightTexture },
+      sunDirection: { value: new THREE.Vector3(1, 0, 0) },
+    },
+    vertexShader: `
+      varying vec2 vUv;
+      varying vec3 vWorldNormal;
+      void main() {
+        vUv = uv;
+        vWorldNormal = normalize(mat3(modelMatrix) * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      uniform sampler2D dayTexture;
+      uniform sampler2D nightTexture;
+      uniform vec3 sunDirection;
+      varying vec2 vUv;
+      varying vec3 vWorldNormal;
+      void main() {
+        float intensity = dot(normalize(vWorldNormal), normalize(sunDirection));
+        // Soft terminator transition over a ~0.3 dot-product band.
+        float dayFactor = smoothstep(-0.08, 0.22, intensity);
+        vec3 dayColor = texture2D(dayTexture, vUv).rgb;
+        vec3 nightColor = texture2D(nightTexture, vUv).rgb * 1.25;
+        vec3 color = mix(nightColor, dayColor, dayFactor);
+        gl_FragColor = vec4(color, 1.0);
+      }
+    `,
+  });
+}
 
 export function GlobeCanvas({ theme }: GlobeCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const globeRef = useRef<GlobeMethods | undefined>(undefined);
   const { origin, destination, selectAirport } = useSelection();
+  const { config } = useAircraft();
 
-  // react-globe.gl needs explicit pixel width/height (no auto-fill).
+  // react-globe.gl needs explicit pixel width/height.
   const [size, setSize] = useState({ w: 0, h: 0 });
   useEffect(() => {
     const el = containerRef.current;
@@ -71,18 +129,29 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
 
   const route = useMemo(() => {
     if (!origin || !destination) return null;
-    return buildRouteForPair(origin, destination, routes);
-  }, [origin, destination]);
+    return buildRouteForPair(origin, destination, routes, config);
+  }, [origin, destination, config]);
 
   const isReducedMotion =
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  // Theme tokens — matched to our CSS variables.
+  // Globe material — single instance, sun-uniform updated over time.
+  const globeMaterial = useMemo(() => buildGlobeMaterial(), []);
+
+  // Keep sun direction up to date.
+  useEffect(() => {
+    function tick() {
+      const [x, y, z] = getSunDirection(new Date());
+      const v = globeMaterial.uniforms.sunDirection.value as THREE.Vector3;
+      v.set(x, y, z);
+    }
+    tick();
+    const interval = window.setInterval(tick, 60_000);
+    return () => window.clearInterval(interval);
+  }, [globeMaterial]);
+
   const accent = theme === "dark" ? "#22d3ee" : "#06b6d4";
-  const dim = theme === "dark" ? "#71717a" : "#a1a1aa";
-  const bg = theme === "dark" ? "#09090b" : "#fafafa";
-  const fg = theme === "dark" ? "#fafafa" : "#0a0a0a";
 
   const points = useMemo<AirportPoint[]>(
     () =>
@@ -97,66 +166,78 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
   const arcs = useMemo<ArcDatum[]>(() => {
     if (!origin || !destination || !route) return [];
     const ratio = route.subsonicHours / route.supersonicHours;
+    const dotSpeedSupersonic = isReducedMotion ? 0 : SUPERSONIC_DRAW_MS;
+    const dotSpeedSubsonic = isReducedMotion ? 0 : SUPERSONIC_DRAW_MS * ratio;
+    const routeLabel = `${origin.iata} → ${destination.iata}`;
+    const savedLabel = `Saved ${formatHours(route.subsonicHours - route.supersonicHours)}`;
+    const common = {
+      startLat: origin.lat,
+      startLng: origin.lng,
+      endLat: destination.lat,
+      endLng: destination.lng,
+      routeLabel,
+      savedLabel,
+    };
     return [
+      // Supersonic glow halo
       {
-        startLat: origin.lat,
-        startLng: origin.lng,
-        endLat: destination.lat,
-        endLng: destination.lng,
-        color: accent,
-        stroke: 0.65,
+        ...common,
+        color: "rgba(255,255,255,0.18)",
+        stroke: 1.4,
         dashLength: 1,
         dashGap: 0,
-        dashAnimateTime: isReducedMotion ? 0 : SUPERSONIC_MS,
+        dashInitialGap: 0,
+        dashAnimateTime: 0,
+        layer: "halo",
       },
+      // Supersonic main line
       {
-        startLat: origin.lat,
-        startLng: origin.lng,
-        endLat: destination.lat,
-        endLng: destination.lng,
-        color: dim,
+        ...common,
+        color: "rgba(255,255,255,0.95)",
+        stroke: 0.6,
+        dashLength: 1,
+        dashGap: 0,
+        dashInitialGap: 0,
+        dashAnimateTime: 0,
+        layer: "supersonic-main",
+      },
+      // Supersonic moving dot
+      {
+        ...common,
+        color: "#ffffff",
+        stroke: 0.85,
+        altitude: 0.32,
+        dashLength: 0.04,
+        dashGap: 0.96,
+        dashInitialGap: 1,
+        dashAnimateTime: dotSpeedSupersonic,
+        layer: "supersonic-dot",
+      },
+      // Subsonic main (dashed)
+      {
+        ...common,
+        color: "rgba(255,255,255,0.55)",
         stroke: 0.4,
-        dashLength: 0.3,
-        dashGap: 0.15,
-        dashAnimateTime: isReducedMotion ? 0 : SUPERSONIC_MS * ratio,
+        dashLength: 0.22,
+        dashGap: 0.14,
+        dashInitialGap: 0,
+        dashAnimateTime: 0,
+        layer: "subsonic-main",
       },
-    ];
-  }, [origin, destination, route, accent, dim, isReducedMotion]);
-
-  // Two-stage label reveal: supersonic chip first, then subsonic + saved.
-  const [stage, setStage] = useState<LabelStage | null>(null);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setStage(null);
-    if (!origin || !destination || !route) return;
-    if (isReducedMotion) {
-      setStage("final");
-      return;
-    }
-    const ratio = route.subsonicHours / route.supersonicHours;
-    const t1 = setTimeout(() => setStage("supersonic"), SUPERSONIC_MS);
-    const t2 = setTimeout(() => setStage("final"), SUPERSONIC_MS * ratio);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [origin, destination, route, isReducedMotion]);
-
-  const htmlData = useMemo<LabelDatum[]>(() => {
-    if (!destination || !route || !stage) return [];
-    return [
+      // Subsonic moving dot
       {
-        lat: destination.lat,
-        lng: destination.lng,
-        supersonicHours: route.supersonicHours,
-        subsonicHours: route.subsonicHours,
-        stage,
-        accent,
-        fg,
-        bg,
+        ...common,
+        color: "rgba(255,255,255,0.85)",
+        stroke: 0.65,
+        altitude: 0.18,
+        dashLength: 0.035,
+        dashGap: 0.965,
+        dashInitialGap: 1,
+        dashAnimateTime: dotSpeedSubsonic,
+        layer: "subsonic-dot",
       },
     ];
-  }, [destination, route, stage, accent, fg, bg]);
+  }, [origin, destination, route, isReducedMotion]);
 
   // Camera frames the route midpoint when both endpoints are set.
   useEffect(() => {
@@ -164,14 +245,13 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
     if (!g || !origin || !destination) return;
     const lat = (origin.lat + destination.lat) / 2;
     let lng = (origin.lng + destination.lng) / 2;
-    // Avoid the long-way-around for transpacific midpoints.
     if (Math.abs(origin.lng - destination.lng) > 180) {
       lng = lng > 0 ? lng - 180 : lng + 180;
     }
-    g.pointOfView({ lat, lng, altitude: 2.3 }, 1200);
+    g.pointOfView({ lat, lng, altitude: 2.1 }, 1200);
   }, [origin, destination]);
 
-  // Idle auto-rotate.
+  // Idle auto-rotate when there's no active selection.
   useEffect(() => {
     const g = globeRef.current;
     if (!g) return;
@@ -180,9 +260,9 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       autoRotateSpeed: number;
     };
     if (!controls) return;
-    controls.autoRotate = !isReducedMotion;
-    controls.autoRotateSpeed = 0.4;
-  }, [isReducedMotion, size.w]);
+    controls.autoRotate = !isReducedMotion && (!origin || !destination);
+    controls.autoRotateSpeed = 0.35;
+  }, [isReducedMotion, size.w, origin, destination]);
 
   return (
     <div ref={containerRef} className="relative h-full w-full overflow-hidden">
@@ -192,30 +272,30 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
           width={size.w}
           height={size.h}
           backgroundColor="rgba(0,0,0,0)"
+          backgroundImageUrl="/earth/stars.png"
           showAtmosphere
-          atmosphereColor={accent}
-          atmosphereAltitude={0.18}
-          globeImageUrl={
-            theme === "dark"
-              ? "//unpkg.com/three-globe/example/img/earth-dark.jpg"
-              : "//unpkg.com/three-globe/example/img/earth-day.jpg"
-          }
-          bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
+          atmosphereColor="#7dd3fc"
+          atmosphereAltitude={0.16}
+          globeMaterial={globeMaterial}
           // Airport markers
           pointsData={points}
           pointLat="lat"
           pointLng="lng"
           pointAltitude={(d: object) => {
             const p = d as AirportPoint;
-            return p.isOrigin || p.isDest ? 0.025 : 0.005;
+            if (p.isOrigin || p.isDest) return 0.025;
+            return MAJOR_HUBS.has(p.iata) ? 0.012 : 0.005;
           }}
           pointRadius={(d: object) => {
             const p = d as AirportPoint;
-            return p.isOrigin || p.isDest ? 0.55 : 0.22;
+            if (p.isOrigin || p.isDest) return 0.5;
+            return MAJOR_HUBS.has(p.iata) ? 0.35 : 0.18;
           }}
           pointColor={(d: object) => {
             const p = d as AirportPoint;
-            return p.isOrigin || p.isDest ? accent : "rgba(160,160,170,0.7)";
+            if (p.isOrigin || p.isDest) return accent;
+            if (MAJOR_HUBS.has(p.iata)) return "rgba(220,230,240,0.9)";
+            return "rgba(160,170,185,0.55)";
           }}
           pointLabel={(d: object) => {
             const p = d as AirportPoint;
@@ -230,6 +310,16 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
               containerRef.current.style.cursor = d ? "pointer" : "";
             }
           }}
+          // City labels
+          labelsData={CITY_LABELS}
+          labelLat="lat"
+          labelLng="lng"
+          labelText="text"
+          labelSize={0.4}
+          labelDotRadius={0}
+          labelColor={() => "rgba(255,255,255,0.65)"}
+          labelResolution={2}
+          labelAltitude={0.012}
           // Arcs
           arcsData={arcs}
           arcStartLat="startLat"
@@ -238,57 +328,25 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
           arcEndLng="endLng"
           arcColor="color"
           arcStroke="stroke"
+          arcAltitude={(d: object) => {
+            const a = d as ArcDatum;
+            return a.altitude ?? null;
+          }}
           arcAltitudeAutoScale={0.45}
           arcDashLength="dashLength"
           arcDashGap="dashGap"
-          arcDashInitialGap={1}
+          arcDashInitialGap="dashInitialGap"
           arcDashAnimateTime="dashAnimateTime"
           arcsTransitionDuration={0}
-          // Time labels at the destination point
-          htmlElementsData={htmlData}
-          htmlLat="lat"
-          htmlLng="lng"
-          htmlAltitude={0.08}
-          htmlElement={(d: object) => {
-            const data = d as LabelDatum;
-            return buildLabelElement(data);
+          arcLabel={(d: object) => {
+            const a = d as ArcDatum;
+            if (a.layer === "supersonic-main") {
+              return `<div style="font:600 11px ui-sans-serif;background:rgba(9,9,11,0.85);color:white;padding:6px 10px;border-radius:9999px;border:1px solid rgba(255,255,255,0.15);">${a.routeLabel} · ${a.savedLabel}</div>`;
+            }
+            return "";
           }}
         />
       )}
     </div>
   );
-}
-
-function buildLabelElement(d: LabelDatum): HTMLElement {
-  const hoursSaved = d.subsonicHours - d.supersonicHours;
-  const el = document.createElement("div");
-  el.style.pointerEvents = "none";
-  el.style.transform = "translate(14px, -50%)";
-  el.style.fontFamily = "var(--font-geist-sans), system-ui, sans-serif";
-
-  const chips: string[] = [];
-
-  chips.push(`
-    <div style="display:inline-flex;align-items:center;gap:6px;background:${d.accent}26;color:${d.accent};padding:4px 10px;border-radius:9999px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);">
-      <span style="height:6px;width:6px;border-radius:9999px;background:${d.accent};"></span>
-      Supersonic · ${formatHours(d.supersonicHours)}
-    </div>
-  `);
-
-  if (d.stage === "final") {
-    chips.push(`
-      <div style="display:inline-flex;align-items:center;gap:6px;background:${d.fg}1a;color:${d.fg}cc;padding:4px 10px;border-radius:9999px;font-size:11px;font-weight:500;font-variant-numeric:tabular-nums;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);">
-        <span style="height:6px;width:6px;border-radius:9999px;background:${d.fg}66;"></span>
-        Subsonic · ${formatHours(d.subsonicHours)}
-      </div>
-    `);
-    chips.push(`
-      <div style="display:inline-flex;align-items:center;background:${d.accent};color:${d.bg};padding:4px 10px;border-radius:9999px;font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;box-shadow:0 6px 18px ${d.accent}55;">
-        Saved ${formatHours(hoursSaved)}
-      </div>
-    `);
-  }
-
-  el.innerHTML = `<div style="display:flex;flex-direction:column;align-items:flex-start;gap:6px;">${chips.join("")}</div>`;
-  return el;
 }
