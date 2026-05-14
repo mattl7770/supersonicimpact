@@ -3,7 +3,11 @@
 import { Component, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
 
-type Props = { children: ReactNode };
+type Props = {
+  children: ReactNode;
+  /** Bump this to clear an existing error state without remounting the tree. */
+  resetKey?: string | number;
+};
 type State = { error: Error | null };
 
 export class MapErrorBoundary extends Component<Props, State> {
@@ -11,6 +15,15 @@ export class MapErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
+  }
+
+  componentDidUpdate(prevProps: Props) {
+    if (
+      this.state.error &&
+      prevProps.resetKey !== this.props.resetKey
+    ) {
+      this.setState({ error: null });
+    }
   }
 
   componentDidCatch(error: Error) {

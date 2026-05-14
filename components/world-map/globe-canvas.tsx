@@ -260,10 +260,9 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
           width={size.w}
           height={size.h}
           backgroundColor="rgba(0,0,0,0)"
-          backgroundImageUrl="/earth/stars.png"
           showAtmosphere
-          atmosphereColor="#7dd3fc"
-          atmosphereAltitude={0.16}
+          atmosphereColor="#bcd5ea"
+          atmosphereAltitude={0.14}
           globeMaterial={globeMaterial}
           // Airport markers
           pointsData={points}
@@ -271,19 +270,19 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
           pointLng="lng"
           pointAltitude={(d: object) => {
             const p = d as AirportPoint;
-            if (p.isOrigin || p.isDest) return 0.025;
-            return MAJOR_HUBS.has(p.iata) ? 0.012 : 0.005;
+            if (p.isOrigin || p.isDest) return 0.04;
+            return MAJOR_HUBS.has(p.iata) ? 0.02 : 0.012;
           }}
           pointRadius={(d: object) => {
             const p = d as AirportPoint;
-            if (p.isOrigin || p.isDest) return 0.5;
-            return MAJOR_HUBS.has(p.iata) ? 0.35 : 0.18;
+            if (p.isOrigin || p.isDest) return 0.75;
+            return MAJOR_HUBS.has(p.iata) ? 0.55 : 0.36;
           }}
           pointColor={(d: object) => {
             const p = d as AirportPoint;
             if (p.isOrigin || p.isDest) return accent;
-            if (MAJOR_HUBS.has(p.iata)) return "rgba(220,230,240,0.9)";
-            return "rgba(160,170,185,0.55)";
+            if (MAJOR_HUBS.has(p.iata)) return "rgba(230,238,248,0.95)";
+            return "rgba(180,190,205,0.7)";
           }}
           pointLabel={(d: object) => {
             const p = d as AirportPoint;

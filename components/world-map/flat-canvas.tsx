@@ -27,6 +27,21 @@ type FlatCanvasProps = { theme: "light" | "dark" };
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const countriesGeoJSON = feature(worldAtlas as any, (worldAtlas as any).objects.countries) as any;
 
+type FlatLabel = { coords: [number, number]; text: string; kind: "continent" | "ocean" };
+
+// Faint continent + ocean labels — keeps the map from feeling sparse.
+const FLAT_LABELS: FlatLabel[] = [
+  { coords: [20, 8], text: "AFRICA", kind: "continent" },
+  { coords: [95, 45], text: "ASIA", kind: "continent" },
+  { coords: [15, 52], text: "EUROPE", kind: "continent" },
+  { coords: [-100, 45], text: "NORTH AMERICA", kind: "continent" },
+  { coords: [-60, -15], text: "SOUTH AMERICA", kind: "continent" },
+  { coords: [135, -25], text: "AUSTRALIA", kind: "continent" },
+  { coords: [80, -15], text: "Indian Ocean", kind: "ocean" },
+  { coords: [-30, 5], text: "Atlantic Ocean", kind: "ocean" },
+  { coords: [-150, 10], text: "Pacific Ocean", kind: "ocean" },
+];
+
 export function FlatCanvas({ theme }: FlatCanvasProps) {
   const { origin, destination, selectAirport } = useSelection();
   const { config } = useAircraft();
@@ -101,6 +116,31 @@ export function FlatCanvas({ theme }: FlatCanvasProps) {
             ))
           }
         </Geographies>
+
+        {/* Faint continent + ocean labels for context */}
+        {FLAT_LABELS.map((label) => (
+          <Marker key={label.text} coordinates={label.coords}>
+            <text
+              textAnchor="middle"
+              y={4}
+              style={{
+                fontFamily: "var(--font-geist-sans), system-ui, sans-serif",
+                fontSize: label.kind === "continent" ? 10 : 8,
+                fontWeight: label.kind === "continent" ? 600 : 400,
+                fontStyle: label.kind === "ocean" ? "italic" : "normal",
+                letterSpacing:
+                  label.kind === "continent" ? "0.18em" : "0.04em",
+                fill:
+                  theme === "dark"
+                    ? "rgba(245,250,255,0.45)"
+                    : "rgba(40,50,60,0.45)",
+                pointerEvents: "none",
+              }}
+            >
+              {label.text}
+            </text>
+          </Marker>
+        ))}
 
         {/* Great-circle arcs: gray "subsonic" + glowing white "supersonic" */}
         {arcSegments.map((segment, i) => (
@@ -271,21 +311,29 @@ function ArcDot({
       return;
     }
     let raf = 0;
+    let cancelled = false;
     const start = performance.now();
+    const safeDuration = Math.max(1, durationMs);
     function tick(now: number) {
-      const t = Math.min(1, (now - start) / durationMs);
-      setProgress(t);
-      if (t < 1) raf = requestAnimationFrame(tick);
+      if (cancelled) return;
+      // Continuous loop: traverse origin → destination, then jump back.
+      const elapsed = (now - start) % safeDuration;
+      setProgress(elapsed / safeDuration);
+      raf = requestAnimationFrame(tick);
     }
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(raf);
+    };
   }, [durationMs, reducedMotion, points.length]);
 
   if (points.length < 2) return null;
-  const idxF = progress * (points.length - 1);
+  const idxF = Math.max(0, Math.min(1, progress)) * (points.length - 1);
   const i = Math.floor(idxF);
   const t = idxF - i;
   const a = points[i];
+  if (!a) return null;
   const b = points[i + 1] ?? a;
   const point: LngLat = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
 
@@ -313,8 +361,8 @@ function AirportMarker({
   onClick: () => void;
 }) {
   const isMajor = MAJOR_HUBS.has(airport.iata);
-  const r = isSelected ? 5 : isMajor ? 2.2 : 1.4;
-  const fill = isSelected ? accent : isMajor ? "rgba(220,230,240,0.9)" : "rgba(160,170,185,0.55)";
+  const r = isSelected ? 7 : isMajor ? 3.6 : 2.4;
+  const fill = isSelected ? accent : isMajor ? "rgba(230,238,248,0.95)" : "rgba(180,190,205,0.75)";
   return (
     <Marker
       coordinates={[airport.lng, airport.lat]}
