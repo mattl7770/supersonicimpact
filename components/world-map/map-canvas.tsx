@@ -91,6 +91,13 @@ export function MapCanvas({ projection, theme }: MapCanvasProps) {
     return buildRouteForPair(origin, destination, routes);
   }, [origin, destination]);
 
+  // Always-current ref to the desired projection so the load handler can
+  // apply it without re-creating the map.
+  const projectionRef = useRef<Projection>(projection);
+  useEffect(() => {
+    projectionRef.current = projection;
+  }, [projection]);
+
   // ---------- Init map once ----------
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -108,11 +115,15 @@ export function MapCanvas({ projection, theme }: MapCanvasProps) {
       minZoom: 0.8,
     });
 
-    map.setProjection({ type: projection });
     mapRef.current = map;
 
     map.on("load", () => {
       styleLoadedRef.current = true;
+      try {
+        map.setProjection({ type: projectionRef.current });
+      } catch {
+        // ignore — some browsers/contexts may not support globe yet
+      }
 
       map.addSource("airports", { type: "geojson", data: airportsFC() });
       map.addSource("arc-subsonic", { type: "geojson", data: emptyFC });
@@ -245,8 +256,12 @@ export function MapCanvas({ projection, theme }: MapCanvasProps) {
   // ---------- Projection toggle ----------
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-    map.setProjection({ type: projection });
+    if (!map || !styleLoadedRef.current) return;
+    try {
+      map.setProjection({ type: projection });
+    } catch {
+      // ignore
+    }
   }, [projection]);
 
   // ---------- Theme swap (update paint props in place) ----------

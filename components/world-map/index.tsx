@@ -9,6 +9,7 @@ import { airports } from "@/lib/airports";
 import { useSelection } from "@/lib/selection-context";
 
 import { AirportPicker } from "./airport-picker";
+import { MapErrorBoundary } from "./error-boundary";
 import { MapPlaceholder } from "./placeholder";
 import { ProjectionToggle, type Projection } from "./projection-toggle";
 
@@ -77,7 +78,9 @@ export function WorldMap() {
         </div>
 
         <div className="mt-4 h-[420px] sm:h-[520px] lg:h-[600px]">
-          <MapCanvas projection={projection} theme={mapTheme} />
+          <MapErrorBoundary>
+            <MapCanvas projection={projection} theme={mapTheme} />
+          </MapErrorBoundary>
         </div>
 
         <p className="mt-3 text-[11px] text-foreground/45">
