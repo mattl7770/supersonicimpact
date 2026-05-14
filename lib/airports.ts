@@ -137,3 +137,18 @@ export const airports: Airport[] = [
 export function getAirportByIata(iata: string): Airport | undefined {
   return airports.find((a) => a.iata === iata);
 }
+
+/**
+ * IATA codes of the airports that get the brighter dot + city label treatment
+ * on the globe / flat map. Kept tight so the world isn't cluttered.
+ */
+export const MAJOR_HUBS: ReadonlySet<string> = new Set([
+  "JFK", "LAX", "SFO", "ORD", "SEA", "YVR", "MEX",
+  "LHR", "CDG", "FRA", "MAD", "FCO", "AMS", "IST",
+  "DXB", "DOH",
+  "HND", "ICN", "PEK", "PVG", "HKG", "SIN", "BKK",
+  "BOM", "DEL",
+  "SYD", "MEL", "AKL",
+  "GRU", "EZE",
+  "JNB", "CAI", "NBO",
+]);

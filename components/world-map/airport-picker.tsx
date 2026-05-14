@@ -87,7 +87,7 @@ export function AirportPicker({
       {open && (
         <div
           role="listbox"
-          className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-foreground/10 bg-background shadow-lg shadow-black/20"
+          className="absolute inset-x-0 top-full z-50 mt-2 overflow-hidden rounded-2xl border border-foreground/15 bg-background shadow-xl shadow-black/30"
         >
           <div className="flex items-center gap-2 border-b border-foreground/5 px-3 py-2.5">
             <Search

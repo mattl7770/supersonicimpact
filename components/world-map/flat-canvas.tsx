@@ -6,6 +6,7 @@ import {
   ComposableMap,
   Geographies,
   Geography,
+  Line,
   Marker,
 } from "react-simple-maps";
 import { feature } from "topojson-client";
@@ -13,7 +14,7 @@ import { feature } from "topojson-client";
 // @ts-ignore world-atlas ships .json without types
 import worldAtlas from "world-atlas/countries-110m.json";
 
-import { airports, type Airport } from "@/lib/airports";
+import { MAJOR_HUBS, airports, type Airport } from "@/lib/airports";
 import { useSelection } from "@/lib/selection-context";
 import { useAircraft } from "@/lib/aircraft-context";
 import { buildRouteForPair } from "@/lib/flight-time";
@@ -25,17 +26,6 @@ type FlatCanvasProps = { theme: "light" | "dark" };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const countriesGeoJSON = feature(worldAtlas as any, (worldAtlas as any).objects.countries) as any;
-
-const MAJOR_HUBS = new Set([
-  "JFK", "LAX", "SFO", "ORD", "SEA", "YVR", "MEX",
-  "LHR", "CDG", "FRA", "MAD", "FCO", "AMS", "IST",
-  "DXB", "DOH",
-  "HND", "ICN", "PEK", "PVG", "HKG", "SIN", "BKK",
-  "BOM", "DEL",
-  "SYD", "MEL", "AKL",
-  "GRU", "EZE",
-  "JNB", "CAI", "NBO",
-]);
 
 export function FlatCanvas({ theme }: FlatCanvasProps) {
   const { origin, destination, selectAirport } = useSelection();
@@ -235,8 +225,6 @@ function FlatArc({
     </g>
   );
 }
-
-import { Line } from "react-simple-maps";
 
 function ArcSegment({
   from,

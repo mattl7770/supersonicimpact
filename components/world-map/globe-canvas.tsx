@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import * as THREE from "three";
 import type { GlobeMethods } from "react-globe.gl";
 
-import { airports, type Airport } from "@/lib/airports";
+import { MAJOR_HUBS, airports, type Airport } from "@/lib/airports";
 import { useSelection } from "@/lib/selection-context";
 import { useAircraft } from "@/lib/aircraft-context";
 import { buildRouteForPair } from "@/lib/flight-time";
@@ -48,18 +48,6 @@ type LabelDatum = {
 };
 
 const SUPERSONIC_DRAW_MS = 2400;
-
-// Subset of airports we tag as "major hubs" for big labels on the globe.
-const MAJOR_HUBS = new Set([
-  "JFK", "LAX", "SFO", "ORD", "SEA", "YVR", "MEX",
-  "LHR", "CDG", "FRA", "MAD", "FCO", "AMS", "IST",
-  "DXB", "DOH",
-  "HND", "ICN", "PEK", "PVG", "HKG", "SIN", "BKK",
-  "BOM", "DEL",
-  "SYD", "MEL", "AKL",
-  "GRU", "EZE",
-  "JNB", "CAI", "NBO",
-]);
 
 const CITY_LABELS: LabelDatum[] = airports
   .filter((a) => MAJOR_HUBS.has(a.iata))

@@ -51,12 +51,12 @@ export function HeroGlobe() {
 
       <CornerChrome />
 
-      {/* Side panels — only when both endpoints set */}
+      {/* Side panels — render once, position differently across breakpoints */}
       <AnimatePresence>
         {bothSelected && (
           <div
-            key="left-panel-wrap"
-            className="pointer-events-none absolute inset-y-0 left-0 z-20 hidden items-center px-4 lg:flex lg:px-6"
+            key="left-panel"
+            className="pointer-events-none absolute left-0 top-20 z-20 flex justify-start px-4 lg:inset-y-0 lg:top-auto lg:items-center lg:px-6"
           >
             <div className="pointer-events-auto">
               <RouteDetailsPanel />
@@ -65,25 +65,11 @@ export function HeroGlobe() {
         )}
         {bothSelected && (
           <div
-            key="right-panel-wrap"
-            className="pointer-events-none absolute inset-y-0 right-0 z-20 hidden items-center px-4 lg:flex lg:px-6"
+            key="right-panel"
+            className="pointer-events-none absolute right-0 top-20 z-20 hidden justify-end px-4 lg:absolute lg:inset-y-0 lg:top-auto lg:flex lg:items-center lg:px-6"
           >
             <div className="pointer-events-auto">
               <AircraftPanel />
-            </div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* Mobile: stack panels below picker */}
-      <AnimatePresence>
-        {bothSelected && (
-          <div
-            key="mobile-panels"
-            className="pointer-events-none absolute inset-x-0 top-20 z-20 flex flex-col items-center gap-3 px-4 lg:hidden"
-          >
-            <div className="pointer-events-auto">
-              <RouteDetailsPanel />
             </div>
           </div>
         )}
@@ -94,7 +80,7 @@ export function HeroGlobe() {
         <div className="pointer-events-auto">
           <HeroPickerBar />
         </div>
-        <ScrollHint />
+        {!bothSelected && <ScrollHint />}
       </div>
 
       {/* Bottom vignette for legibility */}

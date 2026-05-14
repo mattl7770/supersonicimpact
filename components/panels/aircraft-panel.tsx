@@ -6,9 +6,11 @@ import { Plane, Sparkles } from "lucide-react";
 import { GlassPanel } from "./glass-panel";
 import { Slider } from "./slider";
 import { ALL_AIRCRAFT, useAircraft } from "@/lib/aircraft-context";
+import { useMediaQuery } from "@/lib/use-media-query";
 
 export function AircraftPanel() {
   const { preset, config, setPreset, setConfig } = useAircraft();
+  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   return (
     <GlassPanel side="right">
@@ -24,10 +26,14 @@ export function AircraftPanel() {
         </div>
 
         {/* Aircraft preview */}
-        <div className="flex h-24 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-br from-white/[0.08] to-white/[0.02]">
+        <div className="flex h-24 items-center justify-center rounded-2xl border border-foreground/10 bg-foreground/[0.04]">
           <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 22, repeat: Infinity, ease: "linear" }}
+            animate={reducedMotion ? undefined : { rotate: 360 }}
+            transition={
+              reducedMotion
+                ? undefined
+                : { duration: 22, repeat: Infinity, ease: "linear" }
+            }
             className="text-accent"
           >
             <Plane

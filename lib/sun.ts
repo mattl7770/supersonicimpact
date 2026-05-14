@@ -1,5 +1,3 @@
-import SunCalc from "suncalc";
-
 const RAD = Math.PI / 180;
 
 /**
@@ -33,18 +31,6 @@ export function getSubsolarPoint(date: Date): { lat: number; lng: number } {
   let lng = (12 - utcHours) * 15;
   while (lng > 180) lng -= 360;
   while (lng < -180) lng += 360;
-
-  // Defensive fallback — if SunCalc is available, double-check via its API at (0, lng)
-  // to keep the declination tightly accurate (Spencer is good to ~0.5°).
-  try {
-    const noonSomewhere = SunCalc.getTimes(date, 0, lng);
-    if (noonSomewhere.solarNoon) {
-      // No-op: we just exercise SunCalc to ensure dependency is wired. The
-      // Spencer formula above is already accurate enough for shader use.
-    }
-  } catch {
-    // ignore
-  }
 
   return { lat, lng };
 }

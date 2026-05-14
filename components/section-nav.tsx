@@ -21,7 +21,7 @@ export function SectionNav() {
         visible ? { opacity: 1, y: 0 } : { opacity: 0, y: 24, pointerEvents: "none" }
       }
       transition={{ duration: 0.25, ease: "easeOut" }}
-      className="fixed inset-x-0 bottom-5 z-30 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-1.5 py-1.5 shadow-2xl shadow-black/15 backdrop-blur-xl"
+      className="fixed inset-x-0 bottom-5 z-40 mx-auto flex w-fit max-w-[calc(100%-1.5rem)] items-center gap-1 rounded-full border border-foreground/10 bg-background/80 px-1.5 py-1.5 shadow-2xl shadow-black/15 backdrop-blur-xl"
     >
       {items.map((item) =>
         item.available ? (

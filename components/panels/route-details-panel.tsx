@@ -23,6 +23,20 @@ export function RouteDetailsPanel() {
   const [editingRate, setEditingRate] = useState(false);
   const [rateInput, setRateInput] = useState(String(hourlyRate));
 
+  function commitRate() {
+    const trimmed = rateInput.trim();
+    const n = Number(trimmed);
+    if (trimmed === "" || !Number.isFinite(n) || n <= 0) {
+      // Invalid → revert to the current persisted rate.
+      setRateInput(String(hourlyRate));
+    } else {
+      const clamped = Math.min(10000, Math.max(1, Math.round(n)));
+      setHourlyRate(clamped);
+      setRateInput(String(clamped));
+    }
+    setEditingRate(false);
+  }
+
   const route = useMemo(() => {
     if (!origin || !destination) return null;
     return buildRouteForPair(origin, destination, routes, config);
@@ -104,30 +118,27 @@ export function RouteDetailsPanel() {
                 <span className="text-foreground/55">@</span>
                 <input
                   type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={10000}
                   value={rateInput}
+                  aria-label="Hourly rate in US dollars"
                   onChange={(e) => setRateInput(e.target.value)}
-                  onBlur={() => {
-                    const n = Number(rateInput);
-                    if (Number.isFinite(n) && n > 0) setHourlyRate(n);
-                    setEditingRate(false);
-                  }}
+                  onBlur={commitRate}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      const n = Number(rateInput);
-                      if (Number.isFinite(n) && n > 0) setHourlyRate(n);
-                      setEditingRate(false);
-                    }
+                    if (e.key === "Enter") commitRate();
                     if (e.key === "Escape") {
                       setRateInput(String(hourlyRate));
                       setEditingRate(false);
                     }
                   }}
                   autoFocus
-                  className="w-14 rounded bg-white/10 px-1 py-0.5 text-right text-xs tabular-nums text-foreground focus:outline-none"
+                  className="w-14 rounded bg-foreground/10 px-1 py-0.5 text-right text-xs tabular-nums text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
                 />
                 <span className="text-foreground/55">/hr</span>
                 <button
                   type="button"
+                  aria-label="Cancel rate edit"
                   onClick={() => {
                     setRateInput(String(hourlyRate));
                     setEditingRate(false);
@@ -140,6 +151,7 @@ export function RouteDetailsPanel() {
             ) : (
               <button
                 type="button"
+                aria-label={`Edit hourly rate (currently $${hourlyRate} per hour)`}
                 onClick={() => {
                   setRateInput(String(hourlyRate));
                   setEditingRate(true);
