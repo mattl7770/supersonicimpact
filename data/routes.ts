@@ -126,3 +126,16 @@ export const routes: Route[] = [
 export function getRouteById(id: string): Route | undefined {
   return routes.find((r) => r.id === id);
 }
+
+export function getCuratedRouteByAirports(
+  originIata: string,
+  destinationIata: string,
+): Route | undefined {
+  const a = originIata.toUpperCase();
+  const b = destinationIata.toUpperCase();
+  return routes.find(
+    (r) =>
+      (r.origin.iata === a && r.destination.iata === b) ||
+      (r.origin.iata === b && r.destination.iata === a),
+  );
+}

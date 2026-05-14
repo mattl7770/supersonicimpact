@@ -2,15 +2,20 @@ import { ExternalLink } from "lucide-react";
 import { Hero } from "@/components/hero";
 import { Navbar } from "@/components/navbar";
 import { RouteComparator } from "@/components/route-comparator";
+import { WorldMap } from "@/components/world-map";
+import { SelectionProvider } from "@/lib/selection-context";
 
 export default function Home() {
   return (
     <>
       <Navbar />
-      <main>
-        <Hero />
-        <RouteComparator />
-      </main>
+      <SelectionProvider>
+        <main>
+          <Hero />
+          <WorldMap />
+          <RouteComparator />
+        </main>
+      </SelectionProvider>
       <footer className="border-t border-foreground/5 px-6 py-10 text-center text-xs text-foreground/50 sm:px-10">
         <span>
           Illustrative — based on Boom Supersonic&rsquo;s public claims and
