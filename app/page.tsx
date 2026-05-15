@@ -1,6 +1,7 @@
 import { ExternalLink } from "lucide-react";
 import { HeroGlobe } from "@/components/hero-globe";
 import { RouteComparator } from "@/components/route-comparator";
+import { EconomicImpact } from "@/components/economic-impact";
 import { SectionNav } from "@/components/section-nav";
 import { AircraftProvider } from "@/lib/aircraft-context";
 import { SelectionProvider } from "@/lib/selection-context";
@@ -14,6 +15,7 @@ export default function Home() {
           <HeroGlobe />
           <main>
             <RouteComparator />
+            <EconomicImpact />
           </main>
           <SectionNav />
           <footer className="border-t border-foreground/5 px-6 py-10 text-center text-xs text-foreground/50 sm:px-10">

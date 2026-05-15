@@ -15,3 +15,27 @@ export function compressionRatio(subsonic: number, supersonic: number): number {
   if (supersonic === 0) return 1;
   return subsonic / supersonic;
 }
+
+function compact(n: number): { value: string; suffix: string } {
+  const abs = Math.abs(n);
+  if (abs >= 1e12) return { value: (n / 1e12).toFixed(2), suffix: "T" };
+  if (abs >= 1e9) return { value: (n / 1e9).toFixed(2), suffix: "B" };
+  if (abs >= 1e6) return { value: (n / 1e6).toFixed(2), suffix: "M" };
+  if (abs >= 1e3) return { value: (n / 1e3).toFixed(1), suffix: "K" };
+  return { value: Math.round(n).toString(), suffix: "" };
+}
+
+function trimTrailingZeros(s: string): string {
+  if (!s.includes(".")) return s;
+  return s.replace(/\.?0+$/, "");
+}
+
+export function formatUsdCompact(n: number): string {
+  const { value, suffix } = compact(n);
+  return `$${trimTrailingZeros(value)}${suffix}`;
+}
+
+export function formatCountCompact(n: number): string {
+  const { value, suffix } = compact(n);
+  return `${trimTrailingZeros(value)}${suffix}`;
+}

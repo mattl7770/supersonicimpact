@@ -92,19 +92,24 @@ productivity_days   = hours_saved_one_way / 8
 
 ### 5.1 Productivity boost
 
+The simulator exposes four inputs (annual passengers, network size, average business-traveler hourly value, round trips per passenger per year). It computes:
+
 ```
-annual_passenger_hours_saved = passengers_per_flight
-                              * daily_flights
-                              * 365
-                              * avg_hours_saved_per_passenger
-                              * adoption_rate
+annual_passenger_one_way_legs = annual_passengers
+                              * round_trips_per_pax_per_year
+                              * 2
+
+annual_passenger_hours_saved  = annual_passenger_one_way_legs
+                              * avg_hours_saved_per_one_way
 
 annual_productivity_value_usd = annual_passenger_hours_saved
                               * avg_passenger_hourly_value_usd
 ```
 
-`avg_hours_saved_per_passenger` is the mean of seed-route savings, ~4 h.
-`avg_passenger_hourly_value_usd` defaults to **$200** (conservative business-traveler proxy); user can override.
+`avg_hours_saved_per_one_way` is the mean of the 12 curated route savings (≈3.9 h, recomputed at import time from `data/routes.ts`).
+`avg_passenger_hourly_value_usd` defaults to **$350** in the simulator (a central business-traveler proxy); the slider exposes the $100–$800 range.
+
+Number of routes drives a derived `passengers_per_route` display so the slider has a visible effect on the scenario without double-counting volume — `annual_passengers` is already the total passenger count per year regardless of how the network is split.
 
 ### 5.2 GDP contribution
 
@@ -118,7 +123,7 @@ Aviation has documented economic multipliers. We use ATAG's published figures as
 gdp_contribution_estimate_usd = annual_productivity_value_usd * multiplier
 ```
 
-Where `multiplier` is in the range [1.5, 3.0] depending on the assumption set (conservative / central / optimistic). Default = **2.0**, midpoint of typical aviation catalytic-impact multipliers.
+Where `multiplier` represents aviation's catalytic effect (jobs, supply-chain, tourism beyond direct productivity). Typical literature range is **2.5–3.0** (direct + indirect + induced) up to **3.5** when catalytic / tourism effects are included. The simulator uses **3.5** as an illustrative upper-bound scenario — surfaced as a static badge today, exposable as a sensitivity slider in a future phase.
 
 ```
 jobs_supported_estimate = gdp_contribution_estimate_usd
@@ -129,7 +134,7 @@ i.e., apply ATAG's global jobs-per-dollar ratio.
 
 **Important caveats**
 - These are **scenario estimates**, not forecasts. They assume the modeled productivity gains translate at the same rate as existing aviation activity, which is itself an averaged figure.
-- Multipliers vary by region, sector, and time horizon. The site exposes the multiplier in tooltips and (Phase 3) in a sensitivity panel.
+- Multipliers vary by region, sector, and time horizon. The site documents the multiplier in the in-app Assumptions panel and (future phase) in a sensitivity slider.
 
 ---
 

@@ -5,7 +5,7 @@ import { useScrolledPastHero } from "@/lib/use-scroll";
 
 const items = [
   { label: "Comparator", href: "#comparator", available: true },
-  { label: "Time Value", href: "#time-value", available: false },
+  { label: "Economic Impact", href: "#economic-impact", available: true },
   { label: "Sustainability", href: "#sustainability", available: false },
   { label: "About", href: "#about", available: false },
 ];
