@@ -171,7 +171,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
     // and short arcs don't look flattened. three-globe still gives us the
     // gradual sine-shaped rise + descent.
     const SUPERSONIC_ALT = 0.32;
-    const SUBSONIC_ALT = 0.2;
+    const SUBSONIC_ALT = 0.26;
 
     return [
       // Supersonic glow halo
