@@ -41,16 +41,15 @@ type PathDatum = {
   savedLabel: string;
 };
 
-const ARC_SEGMENTS = 96;
+const ARC_SEGMENTS = 256;
+const GLOBE_RADIUS = 100; // three-globe's GLOBE_RADIUS
 
 /**
  * Smooth sinusoidal altitude profile: 0 at the endpoints, peak at the
  * midpoint, with a long gradual rise and fall. Because each point along
  * the great circle gets its own altitude, the curve never interpolates
  * THROUGH the planet — so the same peak works for short and antipodal
- * routes alike. sin(πt) gives the familiar broad "apex" shape (within
- * ~5% of peak for the middle 20% of the arc), so the middle reads as a
- * consistent height even without an explicit plateau.
+ * routes alike.
  */
 function altitudeAt(t: number, peak: number): number {
   if (t <= 0 || t >= 1) return 0;
@@ -71,6 +70,106 @@ function buildPathPoints(
     const t = i / (arc.length - 1);
     return [lat, lng, altitudeAt(t, peakAltitude)];
   });
+}
+
+// Match three-globe's polar2Cartesian convention exactly so the custom
+// TubeGeometry aligns with airport markers / labels rendered by three-globe.
+function polarToVec3(lat: number, lng: number, altitude: number, target: THREE.Vector3): THREE.Vector3 {
+  const phi = (90 - lat) * Math.PI / 180;
+  const theta = (90 - lng) * Math.PI / 180;
+  const r = GLOBE_RADIUS * (1 + altitude);
+  const phiSin = Math.sin(phi);
+  return target.set(
+    r * phiSin * Math.cos(theta),
+    r * Math.cos(phi),
+    r * phiSin * Math.sin(theta),
+  );
+}
+
+/**
+ * A three.js Curve that follows the great-circle path between two
+ * lat/lng points with a sine altitude profile. Plugged into
+ * TubeGeometry to get a single smooth mesh instead of fat-line quads.
+ */
+class GreatCircleAltCurve extends THREE.Curve<THREE.Vector3> {
+  private p0 = new THREE.Vector3();
+  private p1 = new THREE.Vector3();
+  private angle: number;
+  private sinAngle: number;
+  private peakAltitude: number;
+
+  constructor(
+    startLat: number,
+    startLng: number,
+    endLat: number,
+    endLng: number,
+    peakAltitude: number,
+  ) {
+    super();
+    polarToVec3(startLat, startLng, 0, this.p0).divideScalar(GLOBE_RADIUS);
+    polarToVec3(endLat, endLng, 0, this.p1).divideScalar(GLOBE_RADIUS);
+    const dot = Math.max(-1, Math.min(1, this.p0.dot(this.p1)));
+    this.angle = Math.acos(dot);
+    this.sinAngle = Math.sin(this.angle);
+    this.peakAltitude = peakAltitude;
+  }
+
+  override getPoint(t: number, target = new THREE.Vector3()): THREE.Vector3 {
+    const clamped = Math.max(0, Math.min(1, t));
+    const dir = new THREE.Vector3();
+    if (this.sinAngle < 1e-6) {
+      dir.copy(this.p0).lerp(this.p1, clamped);
+    } else {
+      const s0 = Math.sin((1 - clamped) * this.angle) / this.sinAngle;
+      const s1 = Math.sin(clamped * this.angle) / this.sinAngle;
+      dir.copy(this.p0).multiplyScalar(s0).addScaledVector(this.p1, s1);
+    }
+    dir.normalize();
+    const altFactor = Math.sin(clamped * Math.PI);
+    const r = GLOBE_RADIUS * (1 + altFactor * this.peakAltitude);
+    return target.copy(dir).multiplyScalar(r);
+  }
+}
+
+type CustomArcDatum = {
+  id: string;
+  kind: "halo" | "supersonic-main" | "subsonic-main";
+  startLat: number;
+  startLng: number;
+  endLat: number;
+  endLng: number;
+  peakAltitude: number;
+  color: string;
+  opacity: number;
+  radius: number;
+};
+
+function buildCustomArcObject(item: CustomArcDatum): THREE.Object3D {
+  const curve = new GreatCircleAltCurve(
+    item.startLat,
+    item.startLng,
+    item.endLat,
+    item.endLng,
+    item.peakAltitude,
+  );
+  const tubularSegments = 128;
+  const radialSegments = 8;
+  const geometry = new THREE.TubeGeometry(
+    curve,
+    tubularSegments,
+    item.radius,
+    radialSegments,
+    false,
+  );
+  const material = new THREE.MeshBasicMaterial({
+    color: item.color,
+    transparent: item.opacity < 1,
+    opacity: item.opacity,
+    depthWrite: item.opacity >= 0.95,
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.renderOrder = item.kind === "halo" ? 1 : 2;
+  return mesh;
 }
 
 type LabelDatum = {
@@ -191,40 +290,16 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
     const routeLabel = `${origin.iata} → ${destination.iata}`;
     const savedLabel = `Saved ${formatHours(route.subsonicHours - route.supersonicHours)}`;
 
-    // Peak altitude (in globe-radii). Same for any route length.
+    // Peak altitudes (in globe-radii). Same for any route length.
     const SUPERSONIC_ALT = 0.14;
     const SUBSONIC_ALT = 0.09;
 
     const supersonicPath = buildPathPoints(origin, destination, SUPERSONIC_ALT);
     const subsonicPath = buildPathPoints(origin, destination, SUBSONIC_ALT);
 
+    // Only the moving dots stay on pathsData — dashed fat-line is fine
+    // for small dots since only one quad is visible at a time.
     return [
-      // Supersonic glow halo
-      {
-        points: supersonicPath,
-        color: "rgba(255,255,255,0.22)",
-        stroke: 6,
-        dashLength: 1,
-        dashGap: 0,
-        dashInitialGap: 0,
-        dashAnimateTime: 0,
-        layer: "halo",
-        routeLabel,
-        savedLabel,
-      },
-      // Supersonic main line
-      {
-        points: supersonicPath,
-        color: "rgba(255,255,255,0.95)",
-        stroke: 2.6,
-        dashLength: 1,
-        dashGap: 0,
-        dashInitialGap: 0,
-        dashAnimateTime: 0,
-        layer: "supersonic-main",
-        routeLabel,
-        savedLabel,
-      },
       // Supersonic moving dot (accent blue — the fast one)
       {
         points: supersonicPath,
@@ -235,19 +310,6 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         dashInitialGap: 1,
         dashAnimateTime: dotSpeedSupersonic,
         layer: "supersonic-dot",
-        routeLabel,
-        savedLabel,
-      },
-      // Subsonic main (continuous, lower opacity to read as the "slow" line)
-      {
-        points: subsonicPath,
-        color: "rgba(255,255,255,0.6)",
-        stroke: 2.0,
-        dashLength: 1,
-        dashGap: 0,
-        dashInitialGap: 0,
-        dashAnimateTime: 0,
-        layer: "subsonic-main",
         routeLabel,
         savedLabel,
       },
@@ -266,6 +328,52 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       },
     ];
   }, [origin, destination, route, isReducedMotion, accent]);
+
+  // Custom-layer entries render the static line layers as a single smooth
+  // TubeGeometry mesh per layer (no Line2 quad seams).
+  const customArcs = useMemo<CustomArcDatum[]>(() => {
+    if (!origin || !destination || !route) return [];
+    const SUPERSONIC_ALT = 0.14;
+    const SUBSONIC_ALT = 0.09;
+    return [
+      {
+        id: `halo-${origin.iata}-${destination.iata}`,
+        kind: "halo",
+        startLat: origin.lat,
+        startLng: origin.lng,
+        endLat: destination.lat,
+        endLng: destination.lng,
+        peakAltitude: SUPERSONIC_ALT,
+        color: "#ffffff",
+        opacity: 0.18,
+        radius: 1.6,
+      },
+      {
+        id: `supersonic-${origin.iata}-${destination.iata}`,
+        kind: "supersonic-main",
+        startLat: origin.lat,
+        startLng: origin.lng,
+        endLat: destination.lat,
+        endLng: destination.lng,
+        peakAltitude: SUPERSONIC_ALT,
+        color: "#ffffff",
+        opacity: 0.95,
+        radius: 0.7,
+      },
+      {
+        id: `subsonic-${origin.iata}-${destination.iata}`,
+        kind: "subsonic-main",
+        startLat: origin.lat,
+        startLng: origin.lng,
+        endLat: destination.lat,
+        endLng: destination.lng,
+        peakAltitude: SUBSONIC_ALT,
+        color: "#ffffff",
+        opacity: 0.55,
+        radius: 0.55,
+      },
+    ];
+  }, [origin, destination, route]);
 
   // Camera frames the route midpoint when both endpoints are set.
   useEffect(() => {
@@ -347,9 +455,14 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
           labelColor={() => "rgba(255,255,255,0.65)"}
           labelResolution={2}
           labelAltitude={0.012}
-          // Arcs (as great-circle-sampled paths so every point gets its
-          // own altitude — gives us a true trapezoidal arc that doesn't
-          // clip the planet on long routes)
+          // Static arc lines: rendered as smooth TubeGeometry meshes
+          // via the customLayer (Line2 fat-line had visible quad seams).
+          customLayerData={customArcs}
+          customThreeObject={(d: object) =>
+            buildCustomArcObject(d as CustomArcDatum)
+          }
+          // Moving dots stay on pathsData — Line2 dash artifacts aren't
+          // visible at the small per-frame dot size.
           pathsData={paths}
           pathPoints="points"
           pathPointLat={(p: object) => (p as PathPoint)[0]}
@@ -357,18 +470,12 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
           pathPointAlt={(p: object) => (p as PathPoint)[2]}
           pathColor="color"
           pathStroke="stroke"
+          pathResolution={0.5}
           pathDashLength="dashLength"
           pathDashGap="dashGap"
           pathDashInitialGap="dashInitialGap"
           pathDashAnimateTime="dashAnimateTime"
           pathTransitionDuration={0}
-          pathLabel={(d: object) => {
-            const a = d as PathDatum;
-            if (a.layer === "supersonic-main") {
-              return `<div style="font:600 11px ui-sans-serif;background:rgba(9,9,11,0.85);color:white;padding:6px 10px;border-radius:9999px;border:1px solid rgba(255,255,255,0.15);">${a.routeLabel} · ${a.savedLabel}</div>`;
-            }
-            return "";
-          }}
         />
       )}
     </div>
