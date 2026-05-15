@@ -300,11 +300,12 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
     // Only the moving dots stay on pathsData — dashed fat-line is fine
     // for small dots since only one quad is visible at a time.
     return [
-      // Supersonic moving dot (accent blue — the fast one)
+      // Supersonic moving dot (accent blue — sized clearly above the
+      // supersonic-main tube so it pops out rather than being obscured)
       {
         points: supersonicPath,
         color: accent,
-        stroke: 5,
+        stroke: 10,
         dashLength: 0.04,
         dashGap: 0.96,
         dashInitialGap: 1,
@@ -317,7 +318,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       {
         points: subsonicPath,
         color: "rgba(255,255,255,0.95)",
-        stroke: 4,
+        stroke: 7,
         dashLength: 0.035,
         dashGap: 0.965,
         dashInitialGap: 1,
@@ -346,7 +347,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         peakAltitude: SUPERSONIC_ALT,
         color: "#ffffff",
         opacity: 0.18,
-        radius: 1.6,
+        radius: 1.0,
       },
       {
         id: `supersonic-${origin.iata}-${destination.iata}`,
@@ -358,7 +359,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         peakAltitude: SUPERSONIC_ALT,
         color: "#ffffff",
         opacity: 0.95,
-        radius: 0.7,
+        radius: 0.4,
       },
       {
         id: `subsonic-${origin.iata}-${destination.iata}`,
@@ -370,7 +371,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         peakAltitude: SUBSONIC_ALT,
         color: "#ffffff",
         opacity: 0.55,
-        radius: 0.55,
+        radius: 0.3,
       },
     ];
   }, [origin, destination, route]);
