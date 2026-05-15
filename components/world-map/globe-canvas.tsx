@@ -42,25 +42,19 @@ type PathDatum = {
 };
 
 const ARC_SEGMENTS = 96;
-const ARC_RAMP_FRACTION = 0.18;
 
 /**
- * Trapezoidal altitude profile: smooth ramp up from 0 to `peak`, plateau at
- * `peak` through the middle, smooth ramp back down to 0. Same shape for any
- * route length, which is what makes the arc visually consistent across
- * distances and stops long arcs from clipping the globe.
+ * Smooth sinusoidal altitude profile: 0 at the endpoints, peak at the
+ * midpoint, with a long gradual rise and fall. Because each point along
+ * the great circle gets its own altitude, the curve never interpolates
+ * THROUGH the planet — so the same peak works for short and antipodal
+ * routes alike. sin(πt) gives the familiar broad "apex" shape (within
+ * ~5% of peak for the middle 20% of the arc), so the middle reads as a
+ * consistent height even without an explicit plateau.
  */
-function altitudeAt(t: number, peak: number, ramp = ARC_RAMP_FRACTION): number {
+function altitudeAt(t: number, peak: number): number {
   if (t <= 0 || t >= 1) return 0;
-  if (t < ramp) {
-    const u = t / ramp;
-    return peak * (u * u * (3 - 2 * u)); // smoothstep
-  }
-  if (t > 1 - ramp) {
-    const u = (1 - t) / ramp;
-    return peak * (u * u * (3 - 2 * u));
-  }
-  return peak;
+  return peak * Math.sin(t * Math.PI);
 }
 
 function buildPathPoints(
@@ -197,13 +191,9 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
     const routeLabel = `${origin.iata} → ${destination.iata}`;
     const savedLabel = `Saved ${formatHours(route.subsonicHours - route.supersonicHours)}`;
 
-    // Peak plateau altitude (globe-radii). Each layer's path is fully
-    // sampled along the great circle with a trapezoidal altitude profile
-    // (smooth ramp → plateau → smooth ramp). Identical peak for any
-    // distance, so long arcs no longer clip the planet and short arcs
-    // don't look squashed.
-    const SUPERSONIC_ALT = 0.22;
-    const SUBSONIC_ALT = 0.14;
+    // Peak altitude (in globe-radii). Same for any route length.
+    const SUPERSONIC_ALT = 0.14;
+    const SUBSONIC_ALT = 0.09;
 
     const supersonicPath = buildPathPoints(origin, destination, SUPERSONIC_ALT);
     const subsonicPath = buildPathPoints(origin, destination, SUBSONIC_ALT);
@@ -212,8 +202,8 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       // Supersonic glow halo
       {
         points: supersonicPath,
-        color: "rgba(255,255,255,0.18)",
-        stroke: 1.4,
+        color: "rgba(255,255,255,0.20)",
+        stroke: 4,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
@@ -226,7 +216,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       {
         points: supersonicPath,
         color: "rgba(255,255,255,0.95)",
-        stroke: 0.6,
+        stroke: 1.6,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
@@ -239,7 +229,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       {
         points: supersonicPath,
         color: accent,
-        stroke: 1.1,
+        stroke: 2.4,
         dashLength: 0.04,
         dashGap: 0.96,
         dashInitialGap: 1,
@@ -248,13 +238,13 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         routeLabel,
         savedLabel,
       },
-      // Subsonic main (dashed)
+      // Subsonic main (continuous, lower opacity to read as the "slow" line)
       {
         points: subsonicPath,
         color: "rgba(255,255,255,0.55)",
-        stroke: 0.4,
-        dashLength: 0.22,
-        dashGap: 0.14,
+        stroke: 1.2,
+        dashLength: 1,
+        dashGap: 0,
         dashInitialGap: 0,
         dashAnimateTime: 0,
         layer: "subsonic-main",
@@ -264,8 +254,8 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       // Subsonic moving dot
       {
         points: subsonicPath,
-        color: "rgba(255,255,255,0.85)",
-        stroke: 0.65,
+        color: "rgba(255,255,255,0.9)",
+        stroke: 1.8,
         dashLength: 0.035,
         dashGap: 0.965,
         dashInitialGap: 1,
