@@ -202,8 +202,8 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       // Supersonic glow halo
       {
         points: supersonicPath,
-        color: "rgba(255,255,255,0.20)",
-        stroke: 4,
+        color: "rgba(255,255,255,0.22)",
+        stroke: 6,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
@@ -216,7 +216,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       {
         points: supersonicPath,
         color: "rgba(255,255,255,0.95)",
-        stroke: 1.6,
+        stroke: 2.6,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
@@ -229,7 +229,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       {
         points: supersonicPath,
         color: accent,
-        stroke: 2.4,
+        stroke: 5,
         dashLength: 0.04,
         dashGap: 0.96,
         dashInitialGap: 1,
@@ -241,8 +241,8 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       // Subsonic main (continuous, lower opacity to read as the "slow" line)
       {
         points: subsonicPath,
-        color: "rgba(255,255,255,0.55)",
-        stroke: 1.2,
+        color: "rgba(255,255,255,0.6)",
+        stroke: 2.0,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
@@ -254,8 +254,8 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       // Subsonic moving dot
       {
         points: subsonicPath,
-        color: "rgba(255,255,255,0.9)",
-        stroke: 1.8,
+        color: "rgba(255,255,255,0.95)",
+        stroke: 4,
         dashLength: 0.035,
         dashGap: 0.965,
         dashInitialGap: 1,
