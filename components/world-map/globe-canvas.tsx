@@ -12,6 +12,7 @@ import { buildRouteForPair } from "@/lib/flight-time";
 import { routes } from "@/data/routes";
 import { formatHours } from "@/lib/format";
 import { getSunDirection } from "@/lib/sun";
+import { greatCircleArc } from "@/lib/geo";
 
 import { MapPlaceholder } from "./placeholder";
 
@@ -24,22 +25,59 @@ type GlobeCanvasProps = { theme: "light" | "dark" };
 
 type AirportPoint = Airport & { isOrigin: boolean; isDest: boolean };
 
-type ArcDatum = {
-  startLat: number;
-  startLng: number;
-  endLat: number;
-  endLng: number;
+/** A path is a sampled great-circle line with per-point altitude. */
+type PathPoint = [number, number, number]; // [lat, lng, alt]
+
+type PathDatum = {
+  points: PathPoint[];
   color: string;
   stroke: number;
-  altitude?: number;
   dashLength: number;
   dashGap: number;
   dashInitialGap: number;
   dashAnimateTime: number;
+  layer: "halo" | "supersonic-main" | "supersonic-dot" | "subsonic-main" | "subsonic-dot";
   routeLabel: string;
   savedLabel: string;
-  layer: "halo" | "supersonic-main" | "supersonic-dot" | "subsonic-main" | "subsonic-dot";
 };
+
+const ARC_SEGMENTS = 96;
+const ARC_RAMP_FRACTION = 0.18;
+
+/**
+ * Trapezoidal altitude profile: smooth ramp up from 0 to `peak`, plateau at
+ * `peak` through the middle, smooth ramp back down to 0. Same shape for any
+ * route length, which is what makes the arc visually consistent across
+ * distances and stops long arcs from clipping the globe.
+ */
+function altitudeAt(t: number, peak: number, ramp = ARC_RAMP_FRACTION): number {
+  if (t <= 0 || t >= 1) return 0;
+  if (t < ramp) {
+    const u = t / ramp;
+    return peak * (u * u * (3 - 2 * u)); // smoothstep
+  }
+  if (t > 1 - ramp) {
+    const u = (1 - t) / ramp;
+    return peak * (u * u * (3 - 2 * u));
+  }
+  return peak;
+}
+
+function buildPathPoints(
+  origin: Airport,
+  destination: Airport,
+  peakAltitude: number,
+): PathPoint[] {
+  const arc = greatCircleArc(
+    [origin.lng, origin.lat],
+    [destination.lng, destination.lat],
+    ARC_SEGMENTS,
+  );
+  return arc.map(([lng, lat], i) => {
+    const t = i / (arc.length - 1);
+    return [lat, lng, altitudeAt(t, peakAltitude)];
+  });
+}
 
 type LabelDatum = {
   lat: number;
@@ -151,88 +189,90 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
     [origin, destination],
   );
 
-  const arcs = useMemo<ArcDatum[]>(() => {
+  const paths = useMemo<PathDatum[]>(() => {
     if (!origin || !destination || !route) return [];
     const ratio = route.subsonicHours / route.supersonicHours;
     const dotSpeedSupersonic = isReducedMotion ? 0 : SUPERSONIC_DRAW_MS;
     const dotSpeedSubsonic = isReducedMotion ? 0 : SUPERSONIC_DRAW_MS * ratio;
     const routeLabel = `${origin.iata} → ${destination.iata}`;
     const savedLabel = `Saved ${formatHours(route.subsonicHours - route.supersonicHours)}`;
-    const common = {
-      startLat: origin.lat,
-      startLng: origin.lng,
-      endLat: destination.lat,
-      endLng: destination.lng,
-      routeLabel,
-      savedLabel,
-    };
-    // Fixed peak altitudes (in globe-radius units) — same for every route
-    // regardless of distance, so long arcs don't dip through the planet
-    // and short arcs don't look flattened. three-globe still gives us the
-    // gradual sine-shaped rise + descent.
-    const SUPERSONIC_ALT = 0.32;
-    const SUBSONIC_ALT = 0.26;
+
+    // Peak plateau altitude (globe-radii). Each layer's path is fully
+    // sampled along the great circle with a trapezoidal altitude profile
+    // (smooth ramp → plateau → smooth ramp). Identical peak for any
+    // distance, so long arcs no longer clip the planet and short arcs
+    // don't look squashed.
+    const SUPERSONIC_ALT = 0.22;
+    const SUBSONIC_ALT = 0.14;
+
+    const supersonicPath = buildPathPoints(origin, destination, SUPERSONIC_ALT);
+    const subsonicPath = buildPathPoints(origin, destination, SUBSONIC_ALT);
 
     return [
       // Supersonic glow halo
       {
-        ...common,
+        points: supersonicPath,
         color: "rgba(255,255,255,0.18)",
         stroke: 1.4,
-        altitude: SUPERSONIC_ALT,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
         dashAnimateTime: 0,
         layer: "halo",
+        routeLabel,
+        savedLabel,
       },
       // Supersonic main line
       {
-        ...common,
+        points: supersonicPath,
         color: "rgba(255,255,255,0.95)",
         stroke: 0.6,
-        altitude: SUPERSONIC_ALT,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
         dashAnimateTime: 0,
         layer: "supersonic-main",
+        routeLabel,
+        savedLabel,
       },
       // Supersonic moving dot (accent blue — the fast one)
       {
-        ...common,
+        points: supersonicPath,
         color: accent,
         stroke: 1.1,
-        altitude: SUPERSONIC_ALT,
         dashLength: 0.04,
         dashGap: 0.96,
         dashInitialGap: 1,
         dashAnimateTime: dotSpeedSupersonic,
         layer: "supersonic-dot",
+        routeLabel,
+        savedLabel,
       },
       // Subsonic main (dashed)
       {
-        ...common,
+        points: subsonicPath,
         color: "rgba(255,255,255,0.55)",
         stroke: 0.4,
-        altitude: SUBSONIC_ALT,
         dashLength: 0.22,
         dashGap: 0.14,
         dashInitialGap: 0,
         dashAnimateTime: 0,
         layer: "subsonic-main",
+        routeLabel,
+        savedLabel,
       },
       // Subsonic moving dot
       {
-        ...common,
+        points: subsonicPath,
         color: "rgba(255,255,255,0.85)",
         stroke: 0.65,
-        altitude: SUBSONIC_ALT,
         dashLength: 0.035,
         dashGap: 0.965,
         dashInitialGap: 1,
         dashAnimateTime: dotSpeedSubsonic,
         layer: "subsonic-dot",
+        routeLabel,
+        savedLabel,
       },
     ];
   }, [origin, destination, route, isReducedMotion, accent]);
@@ -317,25 +357,23 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
           labelColor={() => "rgba(255,255,255,0.65)"}
           labelResolution={2}
           labelAltitude={0.012}
-          // Arcs
-          arcsData={arcs}
-          arcStartLat="startLat"
-          arcStartLng="startLng"
-          arcEndLat="endLat"
-          arcEndLng="endLng"
-          arcColor="color"
-          arcStroke="stroke"
-          arcAltitude={(d: object) => {
-            const a = d as ArcDatum;
-            return a.altitude ?? null;
-          }}
-          arcDashLength="dashLength"
-          arcDashGap="dashGap"
-          arcDashInitialGap="dashInitialGap"
-          arcDashAnimateTime="dashAnimateTime"
-          arcsTransitionDuration={0}
-          arcLabel={(d: object) => {
-            const a = d as ArcDatum;
+          // Arcs (as great-circle-sampled paths so every point gets its
+          // own altitude — gives us a true trapezoidal arc that doesn't
+          // clip the planet on long routes)
+          pathsData={paths}
+          pathPoints="points"
+          pathPointLat={(p: object) => (p as PathPoint)[0]}
+          pathPointLng={(p: object) => (p as PathPoint)[1]}
+          pathPointAlt={(p: object) => (p as PathPoint)[2]}
+          pathColor="color"
+          pathStroke="stroke"
+          pathDashLength="dashLength"
+          pathDashGap="dashGap"
+          pathDashInitialGap="dashInitialGap"
+          pathDashAnimateTime="dashAnimateTime"
+          pathTransitionDuration={0}
+          pathLabel={(d: object) => {
+            const a = d as PathDatum;
             if (a.layer === "supersonic-main") {
               return `<div style="font:600 11px ui-sans-serif;background:rgba(9,9,11,0.85);color:white;padding:6px 10px;border-radius:9999px;border:1px solid rgba(255,255,255,0.15);">${a.routeLabel} · ${a.savedLabel}</div>`;
             }
