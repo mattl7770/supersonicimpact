@@ -166,12 +166,20 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
       routeLabel,
       savedLabel,
     };
+    // Fixed peak altitudes (in globe-radius units) — same for every route
+    // regardless of distance, so long arcs don't dip through the planet
+    // and short arcs don't look flattened. three-globe still gives us the
+    // gradual sine-shaped rise + descent.
+    const SUPERSONIC_ALT = 0.32;
+    const SUBSONIC_ALT = 0.2;
+
     return [
       // Supersonic glow halo
       {
         ...common,
         color: "rgba(255,255,255,0.18)",
         stroke: 1.4,
+        altitude: SUPERSONIC_ALT,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
@@ -183,6 +191,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         ...common,
         color: "rgba(255,255,255,0.95)",
         stroke: 0.6,
+        altitude: SUPERSONIC_ALT,
         dashLength: 1,
         dashGap: 0,
         dashInitialGap: 0,
@@ -194,7 +203,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         ...common,
         color: accent,
         stroke: 1.1,
-        altitude: 0.16,
+        altitude: SUPERSONIC_ALT,
         dashLength: 0.04,
         dashGap: 0.96,
         dashInitialGap: 1,
@@ -206,6 +215,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         ...common,
         color: "rgba(255,255,255,0.55)",
         stroke: 0.4,
+        altitude: SUBSONIC_ALT,
         dashLength: 0.22,
         dashGap: 0.14,
         dashInitialGap: 0,
@@ -217,7 +227,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         ...common,
         color: "rgba(255,255,255,0.85)",
         stroke: 0.65,
-        altitude: 0.09,
+        altitude: SUBSONIC_ALT,
         dashLength: 0.035,
         dashGap: 0.965,
         dashInitialGap: 1,
@@ -319,7 +329,6 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
             const a = d as ArcDatum;
             return a.altitude ?? null;
           }}
-          arcAltitudeAutoScale={0.22}
           arcDashLength="dashLength"
           arcDashGap="dashGap"
           arcDashInitialGap="dashInitialGap"
