@@ -2,6 +2,7 @@ import { ExternalLink } from "lucide-react";
 import { HeroGlobe } from "@/components/hero-globe";
 import { RouteComparator } from "@/components/route-comparator";
 import { EconomicImpact } from "@/components/economic-impact";
+import { Sustainability } from "@/components/sustainability";
 import { AboutSection } from "@/components/about-section";
 import { SectionNav } from "@/components/section-nav";
 import { AircraftProvider } from "@/lib/aircraft-context";
@@ -17,6 +18,7 @@ export default function Home() {
           <main>
             <RouteComparator />
             <EconomicImpact />
+            <Sustainability />
             <AboutSection />
           </main>
           <SectionNav />
