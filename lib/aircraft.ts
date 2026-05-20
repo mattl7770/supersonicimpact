@@ -19,6 +19,13 @@ export type Aircraft = {
   era: AircraftEra;
 };
 
+export const ERA_LABEL: Record<AircraftEra, string> = {
+  concept: "Concept",
+  historical: "Historical",
+  "in-service": "In Service",
+  "in-development": "In Development",
+};
+
 export const aircraft: Aircraft[] = [
   {
     id: "overture",
@@ -90,51 +97,29 @@ export const aircraft: Aircraft[] = [
     passengers: 18,
     era: "concept",
   },
-  {
-    id: "787-9",
-    name: "787-9",
-    manufacturer: "Boeing",
-    topMach: 0.85,
-    rangeNm: 7635,
-    boomlessCruiseMach: 0.85,
-    passengers: 290,
-    era: "in-service",
-  },
-  {
-    id: "777-300er",
-    name: "777-300ER",
-    manufacturer: "Boeing",
-    topMach: 0.84,
-    rangeNm: 7370,
-    boomlessCruiseMach: 0.84,
-    passengers: 396,
-    era: "in-service",
-  },
-  {
-    id: "a350-900",
-    name: "A350-900",
-    manufacturer: "Airbus",
-    topMach: 0.85,
-    rangeNm: 8100,
-    boomlessCruiseMach: 0.85,
-    passengers: 315,
-    era: "in-service",
-  },
-  {
-    id: "a380-800",
-    name: "A380-800",
-    manufacturer: "Airbus",
-    topMach: 0.85,
-    rangeNm: 8200,
-    boomlessCruiseMach: 0.85,
-    passengers: 525,
-    era: "in-service",
-  },
 ];
 
 export const DEFAULT_AIRCRAFT = aircraft[0];
 
+/**
+ * Sentinel "preset" used when the user has dragged a slider away from any
+ * stock aircraft. Not a member of `aircraft` — surfaced separately so call
+ * sites that iterate the preset list aren't accidentally tripped by it.
+ * Values mirror Overture so the first auto-switch is visually a no-op.
+ */
+export const CUSTOM_AIRCRAFT: Aircraft = {
+  id: "custom",
+  name: "Custom",
+  manufacturer: "Configure your own",
+  topMach: DEFAULT_AIRCRAFT.topMach,
+  rangeNm: DEFAULT_AIRCRAFT.rangeNm,
+  boomlessCruiseMach: DEFAULT_AIRCRAFT.boomlessCruiseMach,
+  passengers: DEFAULT_AIRCRAFT.passengers,
+  era: DEFAULT_AIRCRAFT.era,
+};
+
 export function getAircraftById(id: string): Aircraft | undefined {
+  if (id === CUSTOM_AIRCRAFT.id) return CUSTOM_AIRCRAFT;
   return aircraft.find((a) => a.id === id);
 }
 

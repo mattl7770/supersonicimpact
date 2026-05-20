@@ -5,20 +5,29 @@ import {
   useCallback,
   useContext,
   useMemo,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import {
+  CUSTOM_AIRCRAFT,
   DEFAULT_AIRCRAFT,
   aircraft as ALL_AIRCRAFT,
   getAircraftById,
   type Aircraft,
 } from "./aircraft";
 
+const STORAGE_KEY = "supersonicimpact.aircraft";
+
 export type AircraftConfig = Pick<
   Aircraft,
   "topMach" | "rangeNm" | "boomlessCruiseMach" | "passengers"
 >;
+
+type PersistedState = {
+  v: 1;
+  presetId: string;
+  config: AircraftConfig;
+};
 
 type AircraftContextValue = {
   preset: Aircraft;
@@ -39,30 +48,148 @@ function configFromAircraft(a: Aircraft): AircraftConfig {
   };
 }
 
+function isFiniteInRange(n: unknown, min: number, max: number): n is number {
+  return typeof n === "number" && Number.isFinite(n) && n >= min && n <= max;
+}
+
+function validate(parsed: unknown): PersistedState | null {
+  if (!parsed || typeof parsed !== "object") return null;
+  const o = parsed as Record<string, unknown>;
+  if (o.v !== 1) return null;
+  if (typeof o.presetId !== "string") return null;
+  if (o.presetId !== "custom" && !getAircraftById(o.presetId)) return null;
+  const c = o.config;
+  if (!c || typeof c !== "object") return null;
+  const cfg = c as Record<string, unknown>;
+  if (!isFiniteInRange(cfg.topMach, 0.5, 3)) return null;
+  if (!isFiniteInRange(cfg.rangeNm, 500, 15000)) return null;
+  if (!isFiniteInRange(cfg.boomlessCruiseMach, 0.5, 2)) return null;
+  if (!isFiniteInRange(cfg.passengers, 1, 1000)) return null;
+  return {
+    v: 1,
+    presetId: o.presetId,
+    config: {
+      topMach: cfg.topMach,
+      rangeNm: cfg.rangeNm,
+      boomlessCruiseMach: cfg.boomlessCruiseMach,
+      passengers: cfg.passengers,
+    },
+  };
+}
+
+const DEFAULT_STATE: PersistedState = {
+  v: 1,
+  presetId: DEFAULT_AIRCRAFT.id,
+  config: configFromAircraft(DEFAULT_AIRCRAFT),
+};
+
+// Module-level cache so `useSyncExternalStore` returns a stable reference
+// when the underlying JSON hasn't changed.
+let cachedRaw: string | null = null;
+let cachedSnapshot: PersistedState = DEFAULT_STATE;
+
+function readSnapshot(): PersistedState {
+  if (typeof window === "undefined") return DEFAULT_STATE;
+  const raw = window.localStorage.getItem(STORAGE_KEY);
+  if (raw === cachedRaw) return cachedSnapshot;
+  cachedRaw = raw;
+  if (!raw) {
+    cachedSnapshot = DEFAULT_STATE;
+    return cachedSnapshot;
+  }
+  try {
+    const parsed = JSON.parse(raw);
+    cachedSnapshot = validate(parsed) ?? DEFAULT_STATE;
+  } catch {
+    cachedSnapshot = DEFAULT_STATE;
+  }
+  return cachedSnapshot;
+}
+
+function getServerSnapshot(): PersistedState {
+  return DEFAULT_STATE;
+}
+
+function subscribe(callback: () => void) {
+  function onStorage(e: StorageEvent) {
+    if (e.key === STORAGE_KEY) callback();
+  }
+  window.addEventListener("storage", onStorage);
+  return () => window.removeEventListener("storage", onStorage);
+}
+
+function writeStorage(next: PersistedState) {
+  if (typeof window === "undefined") return;
+  try {
+    const json = JSON.stringify(next);
+    window.localStorage.setItem(STORAGE_KEY, json);
+    // useSyncExternalStore doesn't see same-tab writes via the "storage" event,
+    // so we dispatch one manually to keep subscribers in sync.
+    window.dispatchEvent(
+      new StorageEvent("storage", { key: STORAGE_KEY, newValue: json }),
+    );
+  } catch {
+    // ignore
+  }
+}
+
 export function AircraftProvider({ children }: { children: ReactNode }) {
-  const [preset, setPresetState] = useState<Aircraft>(DEFAULT_AIRCRAFT);
-  const [config, setConfigState] = useState<AircraftConfig>(() =>
-    configFromAircraft(DEFAULT_AIRCRAFT),
+  const persisted = useSyncExternalStore(
+    subscribe,
+    readSnapshot,
+    getServerSnapshot,
   );
 
+  const preset = useMemo<Aircraft>(() => {
+    if (persisted.presetId === "custom") return CUSTOM_AIRCRAFT;
+    return getAircraftById(persisted.presetId) ?? DEFAULT_AIRCRAFT;
+  }, [persisted.presetId]);
+
   const setPreset = useCallback((id: string) => {
-    const next = getAircraftById(id);
-    if (!next) return;
-    setPresetState(next);
-    setConfigState(configFromAircraft(next));
+    if (id === "custom") {
+      const cur = readSnapshot();
+      writeStorage({ v: 1, presetId: "custom", config: cur.config });
+      return;
+    }
+    const a = getAircraftById(id);
+    if (!a) return;
+    writeStorage({
+      v: 1,
+      presetId: a.id,
+      config: configFromAircraft(a),
+    });
   }, []);
 
   const setConfig = useCallback((partial: Partial<AircraftConfig>) => {
-    setConfigState((prev) => ({ ...prev, ...partial }));
+    const cur = readSnapshot();
+    writeStorage({
+      v: 1,
+      presetId: "custom",
+      config: { ...cur.config, ...partial },
+    });
   }, []);
 
   const resetToPreset = useCallback(() => {
-    setConfigState(configFromAircraft(preset));
-  }, [preset]);
+    const cur = readSnapshot();
+    if (cur.presetId === "custom") return;
+    const a = getAircraftById(cur.presetId);
+    if (!a) return;
+    writeStorage({
+      v: 1,
+      presetId: a.id,
+      config: configFromAircraft(a),
+    });
+  }, []);
 
   const value = useMemo<AircraftContextValue>(
-    () => ({ preset, config, setPreset, setConfig, resetToPreset }),
-    [preset, config, setPreset, setConfig, resetToPreset],
+    () => ({
+      preset,
+      config: persisted.config,
+      setPreset,
+      setConfig,
+      resetToPreset,
+    }),
+    [preset, persisted.config, setPreset, setConfig, resetToPreset],
   );
 
   return (
@@ -80,4 +207,4 @@ export function useAircraft(): AircraftContextValue {
   return ctx;
 }
 
-export { ALL_AIRCRAFT };
+export { ALL_AIRCRAFT, CUSTOM_AIRCRAFT };

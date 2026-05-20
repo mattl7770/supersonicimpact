@@ -1,16 +1,21 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Plane, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 import { GlassPanel } from "./glass-panel";
 import { Slider } from "./slider";
-import { ALL_AIRCRAFT, useAircraft } from "@/lib/aircraft-context";
-import { useMediaQuery } from "@/lib/use-media-query";
+import { StatusBadge } from "./status-badge";
+import { AircraftSilhouette } from "../aircraft/silhouette";
+import {
+  ALL_AIRCRAFT,
+  CUSTOM_AIRCRAFT,
+  useAircraft,
+} from "@/lib/aircraft-context";
 
 export function AircraftPanel() {
   const { preset, config, setPreset, setConfig } = useAircraft();
-  const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
+  const isCustom = preset.id === CUSTOM_AIRCRAFT.id;
+  const dropdownOptions = [CUSTOM_AIRCRAFT, ...ALL_AIRCRAFT];
 
   return (
     <GlassPanel side="right">
@@ -27,30 +32,24 @@ export function AircraftPanel() {
 
         {/* Aircraft preview */}
         <div className="flex h-24 items-center justify-center rounded-2xl border border-foreground/10 bg-foreground/[0.04]">
-          <motion.div
-            animate={reducedMotion ? undefined : { rotate: 360 }}
-            transition={
-              reducedMotion
-                ? undefined
-                : { duration: 22, repeat: Infinity, ease: "linear" }
-            }
-            className="text-accent"
-          >
-            <Plane
-              className="h-12 w-12 -rotate-45"
-              strokeWidth={1.2}
-              aria-hidden="true"
-            />
-          </motion.div>
+          <AircraftSilhouette
+            aircraftId={preset.id}
+            className="h-16 w-auto text-foreground/85"
+          />
         </div>
 
-        <div className="text-center">
-          <div className="text-base font-semibold text-foreground">
-            {preset.manufacturer} {preset.name}
+        <div className="space-y-1 text-center">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <div className="text-base font-semibold text-foreground">
+              {isCustom ? preset.name : `${preset.manufacturer} ${preset.name}`}
+            </div>
+            <StatusBadge era={isCustom ? undefined : preset.era} />
           </div>
-          <div className="text-[11px] uppercase tracking-wider text-foreground/55">
-            {preset.era.replace("-", " ")}
-          </div>
+          {isCustom ? (
+            <div className="text-[11px] uppercase tracking-wider text-foreground/55">
+              {preset.manufacturer}
+            </div>
+          ) : null}
         </div>
 
         {/* Preset selector */}
@@ -67,13 +66,15 @@ export function AircraftPanel() {
             onChange={(e) => setPreset(e.target.value)}
             className="mt-1 w-full rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-white/[0.08] focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
           >
-            {ALL_AIRCRAFT.map((a) => (
+            {dropdownOptions.map((a) => (
               <option
                 key={a.id}
                 value={a.id}
                 className="bg-background text-foreground"
               >
-                {a.manufacturer} {a.name}
+                {a.id === CUSTOM_AIRCRAFT.id
+                  ? a.name
+                  : `${a.manufacturer} ${a.name}`}
               </option>
             ))}
           </select>
@@ -93,7 +94,7 @@ export function AircraftPanel() {
             label="Range"
             value={config.rangeNm}
             min={1500}
-            max={8500}
+            max={7000}
             step={50}
             onChange={(n) => setConfig({ rangeNm: n })}
             formatValue={(v) => `${v.toLocaleString()} NM`}
@@ -111,7 +112,7 @@ export function AircraftPanel() {
             label="Passengers"
             value={config.passengers}
             min={1}
-            max={550}
+            max={200}
             step={1}
             onChange={(n) => setConfig({ passengers: n })}
             formatValue={(v) => `${v} pax`}
