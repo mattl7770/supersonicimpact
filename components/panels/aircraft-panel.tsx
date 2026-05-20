@@ -31,11 +31,8 @@ export function AircraftPanel() {
         </div>
 
         {/* Aircraft preview */}
-        <div className="flex h-24 items-center justify-center rounded-2xl border border-foreground/10 bg-foreground/[0.04]">
-          <AircraftSilhouette
-            aircraftId={preset.id}
-            className="h-16 w-auto text-foreground/85"
-          />
+        <div className="relative flex h-32 items-center justify-center overflow-hidden rounded-2xl border border-foreground/10 bg-foreground/[0.04]">
+          <AircraftSilhouette aircraftId={preset.id} aircraftName={preset.name} />
         </div>
 
         <div className="space-y-1 text-center">
