@@ -24,11 +24,11 @@ export function Assumptions() {
         />
         <Row
           term={`Average subsonic block time per one-way: ${AVG_SUBSONIC_HOURS_PER_ONE_WAY.toFixed(1)} h`}
-          definition="Mean of scheduled widebody block times across the curated routes — sourced from airline schedules and Great Circle Mapper."
+          definition="Mean of scheduled widebody block times across the curated routes, sourced from airline schedules and Great Circle Mapper."
         />
         <Row
           term={`Catalytic GDP multiplier: ${GDP_MULTIPLIER.toFixed(1)}×`}
-          definition="Aviation's catalytic multiplier — the second-order effect on jobs, supply chains, and tourism beyond direct productivity. Typical literature range is 2.5–3.5; this site uses the upper bound as an illustrative scenario, not a forecast (IATA / ATAG, World Bank)."
+          definition="Aviation's catalytic multiplier: the second-order effect on jobs, supply chains, and tourism beyond direct productivity. Typical literature range is 2.5–3.5; this site uses the upper bound as an illustrative scenario, not a forecast (IATA / ATAG, World Bank)."
         />
         <Row
           term={`Global aviation total economic impact: $${(GLOBAL_AVIATION_GDP_USD / 1e12).toFixed(1)}T`}
@@ -43,10 +43,10 @@ export function Assumptions() {
           definition="passengers × round-trips × 2 × avg hours saved per one-way. Routes is a network-scale context input (it drives the passengers-per-route stat); it does not double-count volume."
         />
         <p className="border-t border-foreground/10 pt-4 text-[11px] text-foreground/50">
-          Illustrative — based on Boom Supersonic&rsquo;s public claims and
-          published aviation economic data. Actuals depend on final aircraft
-          specs, regulations, fuel availability, and route economics. Full
-          derivations:{" "}
+          Illustrative, based on Boom Supersonic&rsquo;s public claims and
+          published aviation economic data. Real outcomes depend on final
+          aircraft specs, regulations, fuel availability, and route economics.
+          Full derivations:{" "}
           <a
             href="https://github.com/mattl7770/supersonicimpact/blob/main/docs/methodology.md"
             className="underline underline-offset-2 hover:text-foreground/75"

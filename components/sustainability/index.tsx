@@ -68,7 +68,7 @@ export function Sustainability() {
             estimates a commercial supersonic transport like Overture burns{" "}
             <span className="font-semibold text-foreground/85">5–8×</span> the
             fuel per passenger of a modern 787-9. Sustainable Aviation Fuel
-            (SAF) can offset most of that on paper — but in 2024, global SAF
+            (SAF) can offset most of that on paper, but in 2024 global SAF
             supply was just{" "}
             <span className="font-semibold text-foreground/85">0.3%</span> of
             jet-fuel demand.
@@ -135,7 +135,7 @@ export function Sustainability() {
               SAF lifecycle reduction modeled at up to 80% (IATA HEFA cap).
               Global SAF supply was{" "}
               <span className="font-semibold text-foreground/75">0.3%</span> of
-              jet-fuel demand in 2024 — so a 100% SAF tank today is a
+              jet-fuel demand in 2024, so a 100% SAF tank today is a
               book-and-claim accounting move, not a physical reality.
             </p>
           </motion.div>
@@ -212,8 +212,8 @@ export function Sustainability() {
               <span className="font-semibold text-foreground/90">
                 Subsonic baseline
               </span>{" "}
-              is 60 g CO₂ / pax-km — a fully-loaded 787-9 in economy, per
-              ICCT&rsquo;s commercial-aviation emissions dataset.
+              is 60 g CO₂ / pax-km, a fully-loaded 787-9 in economy
+              (ICCT&rsquo;s commercial-aviation emissions dataset).
             </li>
             <li>
               <span className="font-semibold text-foreground/90">
@@ -243,10 +243,10 @@ export function Sustainability() {
           </ul>
 
           <p className="mt-5 text-xs text-foreground/45">
-            Illustrative — Overture has not flown; figures use independently
-            published projections. Actuals will depend on final aircraft specs,
-            engine performance, route, load factor, and the regional SAF
-            feedstock mix. Sources:{" "}
+            Illustrative. Overture hasn&rsquo;t flown yet, so figures use
+            independently published projections. Real outcomes will depend on
+            final aircraft specs, engine performance, route, load factor, and
+            the regional SAF feedstock mix. Sources:{" "}
             <a
               href="https://theicct.org/supersonic-aircraft-dec24/"
               target="_blank"

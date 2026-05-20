@@ -12,10 +12,9 @@ const SITE_URL =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://supersonicimpact.vercel.app";
 
 export const metadata: Metadata = {
-  title:
-    "supersonicimpact — Explore the real-world impact of supersonic flight",
+  title: "supersonicimpact",
   description:
-    "Side-by-side route comparisons, time-value calculators, and economic-impact simulations for Boom Supersonic's Overture and the next generation of supersonic aircraft.",
+    "Route comparisons, time-value calculators, and economic-impact simulations for Boom Supersonic's Overture and the next generation of supersonic aircraft.",
   metadataBase: new URL(SITE_URL),
   authors: [{ name: "Matt", url: "https://github.com/mattl7770" }],
   creator: "Matt",
@@ -33,14 +32,13 @@ export const metadata: Metadata = {
     locale: "en_US",
     url: SITE_URL,
     siteName: "supersonicimpact",
-    title:
-      "supersonicimpact — Explore the real-world impact of supersonic flight",
+    title: "supersonicimpact",
     description:
       "Route comparisons, time-value calculator, and economic-impact simulator for Boom Supersonic's Overture and the next generation of supersonic aircraft.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "supersonicimpact — Explore the real-world impact of supersonic flight",
+    title: "supersonicimpact",
     description:
       "Route comparisons, time-value calculator, and economic-impact simulator for the next generation of supersonic aircraft.",
   },

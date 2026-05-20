@@ -4,7 +4,7 @@ export const runtime = "edge";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 export const alt =
-  "supersonicimpact — Explore the real-world impact of supersonic commercial flight";
+  "supersonicimpact: explore the real-world impact of supersonic commercial flight";
 
 const ACCENT = "#22d3ee";
 const FOREGROUND = "#f5f5f5";

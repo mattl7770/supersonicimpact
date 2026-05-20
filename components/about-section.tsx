@@ -38,15 +38,14 @@ export function AboutSection() {
           <strong className="font-semibold text-foreground/90">
             supersonicimpact
           </strong>{" "}
-          is an interactive portfolio piece that translates the abstract value
-          of supersonic commercial flight into intuitive visual tools — route
-          comparisons, time-value calculators, and economic-impact simulations
-          — using Boom Supersonic&rsquo;s publicly stated specs as the
-          baseline.
+          is a portfolio project I built to make supersonic commercial flight
+          feel concrete. Route comparisons, a time-value calculator, and a
+          fleet-scale economic simulator, all running off Boom
+          Supersonic&rsquo;s publicly stated specs.
         </p>
 
         <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-foreground/70">
-          <span>Built by Matt as a portfolio project</span>
+          <span>Built by Matt</span>
           <span className="text-foreground/30">·</span>
           <a
             href={GITHUB_URL}
@@ -93,11 +92,11 @@ export function AboutSection() {
 
           <div className="mt-6 rounded-2xl border border-foreground/10 bg-foreground/[0.03] p-4 text-xs leading-relaxed text-foreground/60">
             <strong className="font-semibold text-foreground/75">
-              Illustrative — not financial advice.
+              Illustrative, not financial advice.
             </strong>{" "}
-            Figures are based on Boom Supersonic&rsquo;s public claims and
-            published aviation economic data. Actuals depend on final aircraft
-            specs, regulatory approvals, fuel availability, and route
+            Figures come from Boom Supersonic&rsquo;s public claims and
+            published aviation data. Real outcomes will depend on final
+            aircraft specs, regulatory approvals, fuel availability, and route
             economics.
           </div>
 
@@ -106,11 +105,11 @@ export function AboutSection() {
               Sources
             </p>
             <ul className="mt-2 grid gap-1 text-xs text-foreground/65 sm:grid-cols-2">
-              <li>Boom Supersonic — public specs &amp; press materials</li>
-              <li>ATAG — Aviation: Benefits Beyond Borders</li>
-              <li>Great Circle Mapper — distances</li>
-              <li>Airline schedules (BA, UA, DL, QF) — subsonic baselines</li>
-              <li>FAA / ICAO — climb &amp; descent profiles</li>
+              <li>Boom Supersonic, public specs and press materials</li>
+              <li>ATAG, Aviation: Benefits Beyond Borders</li>
+              <li>Great Circle Mapper for distances</li>
+              <li>Airline schedules (BA, UA, DL, QF) for subsonic baselines</li>
+              <li>FAA / ICAO for climb and descent profiles</li>
               <li>
                 <a
                   href="https://github.com/mattl7770/supersonicimpact/blob/main/docs/methodology.md"

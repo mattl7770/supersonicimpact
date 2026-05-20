@@ -24,8 +24,8 @@ export default function Home() {
           <SectionNav />
           <footer className="border-t border-foreground/5 px-6 py-10 text-center text-xs text-foreground/50 sm:px-10">
             <span>
-              Illustrative — based on Boom Supersonic&rsquo;s public claims
-              and published aviation data.
+              Illustrative, based on Boom Supersonic&rsquo;s public claims and
+              published aviation data.
             </span>
             <span className="mx-2">·</span>
             <a

@@ -50,10 +50,10 @@ export function EconomicImpact() {
             What happens when every business trip is hours shorter?
           </h2>
           <p className="mt-4 text-base leading-relaxed text-foreground/70">
-            Move the sliders to imagine a world where supersonic travel is
+            Move the sliders to picture a world where supersonic travel is
             mainstream. Recovered productivity flows through the aviation
-            economy&rsquo;s catalytic multiplier into GDP and jobs &mdash; the
-            same engine that today supports{" "}
+            economy&rsquo;s catalytic multiplier into GDP and jobs, the same
+            engine that today supports{" "}
             <span className="font-semibold text-foreground/85">$4.1T</span> of
             economic activity and{" "}
             <span className="font-semibold text-foreground/85">86.5M</span>{" "}
@@ -215,9 +215,9 @@ export function EconomicImpact() {
         </div>
 
         <p className="mt-8 text-xs text-foreground/45">
-          Illustrative — based on Boom Supersonic&rsquo;s public claims and
-          published aviation economic data (ATAG, IATA). Actuals depend on
-          final aircraft specs, regulations, fuel availability, and route
+          Illustrative, based on Boom Supersonic&rsquo;s public claims and
+          published aviation economic data (ATAG, IATA). Real outcomes depend
+          on final aircraft specs, regulations, fuel availability, and route
           economics. See{" "}
           <a
             href="https://github.com/mattl7770/supersonicimpact/blob/main/docs/methodology.md"

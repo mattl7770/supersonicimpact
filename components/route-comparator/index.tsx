@@ -119,7 +119,7 @@ export function RouteComparator() {
         )}
 
         <p className="mt-8 text-xs text-foreground/45">
-          Illustrative — based on Boom Supersonic&rsquo;s public claims and
+          Illustrative, based on Boom Supersonic&rsquo;s public claims and
           published aviation data. See{" "}
           <a
             href="https://github.com/mattl7770/supersonicimpact/blob/main/docs/methodology.md"

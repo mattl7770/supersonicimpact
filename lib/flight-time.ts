@@ -108,7 +108,7 @@ export function buildRouteForPair(
     supersonicHours,
     techStop: beyondRange,
     notes: beyondRange
-      ? `Beyond this aircraft's ${config.rangeNm.toLocaleString()} NM range — assumes one technical stop.`
+      ? `Beyond this aircraft's ${config.rangeNm.toLocaleString()} NM range; assumes one technical stop.`
       : undefined,
   };
 }

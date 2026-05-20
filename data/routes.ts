@@ -42,7 +42,7 @@ export const routes: Route[] = [
     subsonicHours: 14.5,
     supersonicHours: 8.5,
     techStop: true,
-    notes: "Beyond Overture's 4,250 NM range — assumes one technical stop.",
+    notes: "Beyond Overture's 4,250 NM range; assumes one technical stop.",
   },
   {
     id: "hnd-sea",
@@ -59,7 +59,7 @@ export const routes: Route[] = [
     distanceNm: 2150,
     subsonicHours: 6.0,
     supersonicHours: 4.5,
-    notes: "Domestic overland — uses Boom's Boomless Cruise (Mach 1.3).",
+    notes: "Domestic overland; uses Boom's Boomless Cruise (Mach 1.3).",
   },
   {
     id: "ord-lhr",
@@ -101,7 +101,7 @@ export const routes: Route[] = [
     subsonicHours: 10.5,
     supersonicHours: 6.5,
     techStop: true,
-    notes: "Beyond Overture's 4,250 NM range — assumes one technical stop.",
+    notes: "Beyond Overture's 4,250 NM range; assumes one technical stop.",
   },
   {
     id: "lhr-sin",
@@ -111,7 +111,7 @@ export const routes: Route[] = [
     subsonicHours: 12.5,
     supersonicHours: 7.5,
     techStop: true,
-    notes: "Beyond Overture's 4,250 NM range — assumes one technical stop.",
+    notes: "Beyond Overture's 4,250 NM range; assumes one technical stop.",
   },
   {
     id: "jfk-fra",
