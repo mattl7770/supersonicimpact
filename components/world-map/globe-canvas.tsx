@@ -13,8 +13,12 @@ import { routes } from "@/data/routes";
 import { formatHours } from "@/lib/format";
 import { getSunDirection } from "@/lib/sun";
 import { greatCircleArc } from "@/lib/geo";
+import { computeRouteSegments } from "@/lib/route-terrain";
 
 import { MapPlaceholder } from "./placeholder";
+
+const BOOMLESS_COLOR = "#fbbf24"; // amber-400
+const SUBSONIC_LAND_COLOR = "#9ca3af"; // gray-400
 
 const Globe = dynamic(() => import("react-globe.gl"), {
   ssr: false,
@@ -131,6 +135,12 @@ class GreatCircleAltCurve extends THREE.Curve<THREE.Vector3> {
   }
 }
 
+type TerrainBand = {
+  startProgress: number;
+  endProgress: number;
+  isLand: boolean;
+};
+
 type CustomArcDatum = {
   id: string;
   kind: "halo" | "supersonic-main" | "subsonic-main";
@@ -142,7 +152,29 @@ type CustomArcDatum = {
   color: string;
   opacity: number;
   radius: number;
+  /**
+   * Optional per-segment terrain bands for the supersonic line. When
+   * supplied, vertices along the tube are colored by which band their
+   * `u` parameter falls into — over-water uses `color`, over-land uses
+   * `overLandColor`.
+   */
+  segments?: TerrainBand[];
+  overLandColor?: string;
 };
+
+function colorAtProgress(
+  u: number,
+  bands: TerrainBand[],
+  waterColor: string,
+  landColor: string,
+): string {
+  for (const b of bands) {
+    if (u >= b.startProgress && u <= b.endProgress) {
+      return b.isLand ? landColor : waterColor;
+    }
+  }
+  return waterColor;
+}
 
 function buildCustomArcObject(item: CustomArcDatum): THREE.Object3D {
   const curve = new GreatCircleAltCurve(
@@ -161,8 +193,34 @@ function buildCustomArcObject(item: CustomArcDatum): THREE.Object3D {
     radialSegments,
     false,
   );
+
+  const useVertexColors =
+    item.segments !== undefined && item.overLandColor !== undefined;
+  if (useVertexColors) {
+    const segments = item.segments!;
+    const overLand = item.overLandColor!;
+    const overWater = item.color;
+    const ringCount = tubularSegments + 1;
+    const verticesPerRing = radialSegments + 1;
+    const colors = new Float32Array(ringCount * verticesPerRing * 3);
+    const c = new THREE.Color();
+    for (let i = 0; i < ringCount; i++) {
+      const u = i / tubularSegments;
+      const hex = colorAtProgress(u, segments, overWater, overLand);
+      c.set(hex);
+      for (let j = 0; j < verticesPerRing; j++) {
+        const idx = (i * verticesPerRing + j) * 3;
+        colors[idx] = c.r;
+        colors[idx + 1] = c.g;
+        colors[idx + 2] = c.b;
+      }
+    }
+    geometry.setAttribute("color", new THREE.BufferAttribute(colors, 3));
+  }
+
   const material = new THREE.MeshBasicMaterial({
-    color: item.color,
+    color: useVertexColors ? 0xffffff : item.color,
+    vertexColors: useVertexColors,
     transparent: item.opacity < 1,
     opacity: item.opacity,
     depthWrite: item.opacity >= 0.95,
@@ -336,6 +394,13 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
     if (!origin || !destination || !route) return [];
     const SUPERSONIC_ALT = 0.14;
     const SUBSONIC_ALT = 0.09;
+    const terrainBands = computeRouteSegments(
+      [origin.lng, origin.lat],
+      [destination.lng, destination.lat],
+    );
+    const overLandColor = config.hasBoomlessCruise
+      ? BOOMLESS_COLOR
+      : SUBSONIC_LAND_COLOR;
     return [
       {
         id: `halo-${origin.iata}-${destination.iata}`,
@@ -350,16 +415,22 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         radius: 1.0,
       },
       {
-        id: `supersonic-${origin.iata}-${destination.iata}`,
+        id: `supersonic-${origin.iata}-${destination.iata}-${config.hasBoomlessCruise ? "b" : "s"}`,
         kind: "supersonic-main",
         startLat: origin.lat,
         startLng: origin.lng,
         endLat: destination.lat,
         endLng: destination.lng,
         peakAltitude: SUPERSONIC_ALT,
+        // Over-water color for the supersonic tube. Over-land vertices use
+        // `overLandColor`. We keep over-water "bright white" so the line
+        // still reads cleanly against the dark globe; the colored stretches
+        // mark where the aircraft has to slow down.
         color: "#ffffff",
         opacity: 0.95,
         radius: 0.4,
+        segments: terrainBands,
+        overLandColor,
       },
       {
         id: `subsonic-${origin.iata}-${destination.iata}`,
@@ -374,7 +445,7 @@ export function GlobeCanvas({ theme }: GlobeCanvasProps) {
         radius: 0.3,
       },
     ];
-  }, [origin, destination, route]);
+  }, [origin, destination, route, config.hasBoomlessCruise]);
 
   // Camera frames the route midpoint when both endpoints are set.
   useEffect(() => {

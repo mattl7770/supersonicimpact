@@ -17,10 +17,14 @@ import worldAtlas from "world-atlas/countries-110m.json";
 
 import { MAJOR_HUBS, airports, type Airport } from "@/lib/airports";
 import { useSelection } from "@/lib/selection-context";
-import { useAircraft } from "@/lib/aircraft-context";
+import { useAircraft, type AircraftConfig } from "@/lib/aircraft-context";
 import { buildRouteForPair } from "@/lib/flight-time";
 import { routes } from "@/data/routes";
 import { greatCircleArc, splitAtAntimeridian, type LngLat } from "@/lib/geo";
+import { isPointOverLand } from "@/lib/route-terrain";
+
+const BOOMLESS_COLOR = "#fbbf24"; // amber-400
+const SUBSONIC_LAND_COLOR = "#9ca3af"; // gray-400
 
 type FlatCanvasProps = { theme: "light" | "dark" };
 
@@ -66,14 +70,18 @@ export function FlatCanvas({ theme }: FlatCanvasProps) {
     return buildRouteForPair(origin, destination, routes, config);
   }, [origin, destination, config]);
 
-  const arcSegments = useMemo<LngLat[][]>(() => {
+  const arcSegments = useMemo<Array<{ points: LngLat[]; isLand: boolean[] }>>(() => {
     if (!origin || !destination) return [];
     const arc = greatCircleArc(
       [origin.lng, origin.lat],
       [destination.lng, destination.lat],
       96,
     );
-    return splitAtAntimeridian(arc);
+    const subArcs = splitAtAntimeridian(arc);
+    return subArcs.map((points) => ({
+      points,
+      isLand: points.map((p) => isPointOverLand(p)),
+    }));
   }, [origin, destination]);
 
   const accent = theme === "dark" ? "#22d3ee" : "#06b6d4";
@@ -165,7 +173,9 @@ export function FlatCanvas({ theme }: FlatCanvasProps) {
               {arcSegments.map((segment, i) => (
                 <FlatArc
                   key={`arc-${shift}-${i}-${origin?.iata}-${destination?.iata}`}
-                  points={segment}
+                  points={segment.points}
+                  isLand={segment.isLand}
+                  config={config}
                   accent={accent}
                   reducedMotion={isReducedMotion}
                   supersonicMs={2400}
@@ -199,22 +209,28 @@ export function FlatCanvas({ theme }: FlatCanvasProps) {
 
 function FlatArc({
   points,
+  isLand,
+  config,
   accent,
   reducedMotion,
   supersonicMs,
   subsonicMs,
 }: {
   points: LngLat[];
+  isLand: boolean[];
+  config: AircraftConfig;
   accent: string;
   reducedMotion: boolean;
   supersonicMs: number;
   subsonicMs: number;
 }) {
-  // Render the segment as a chain of small <Line> from-to pairs.
-  // react-simple-maps' <Line> projects its endpoints internally.
+  const overLandColor = config.hasBoomlessCruise
+    ? BOOMLESS_COLOR
+    : SUBSONIC_LAND_COLOR;
+
   return (
     <g>
-      {/* Subsonic line: gray, dashed */}
+      {/* Subsonic comparison line: gray, dashed (constant across the whole arc) */}
       {points.slice(0, -1).map((p, i) => (
         <ArcSegment
           key={i}
@@ -226,17 +242,24 @@ function FlatArc({
           reducedMotion={reducedMotion}
         />
       ))}
-      {/* Supersonic line: accent, solid */}
-      {points.slice(0, -1).map((p, i) => (
-        <ArcSegment
-          key={`s-${i}`}
-          from={p}
-          to={points[i + 1]}
-          color={accent}
-          strokeWidth={1.6}
-          reducedMotion={reducedMotion}
-        />
-      ))}
+      {/* Supersonic line: colored per segment by land/water status */}
+      {points.slice(0, -1).map((p, i) => {
+        // Mark a segment as "over land" when either endpoint sits on land
+        // — keeps coastline crossings on the land side and reads as a single
+        // continuous land stretch instead of flickering at the boundary.
+        const segmentIsLand = isLand[i] || isLand[i + 1];
+        const color = segmentIsLand ? overLandColor : accent;
+        return (
+          <ArcSegment
+            key={`s-${i}`}
+            from={p}
+            to={points[i + 1]}
+            color={color}
+            strokeWidth={1.6}
+            reducedMotion={reducedMotion}
+          />
+        );
+      })}
       {/* Subsonic dot — slower, gray */}
       <ArcDot
         points={points}
@@ -245,7 +268,7 @@ function FlatArc({
         durationMs={subsonicMs}
         reducedMotion={reducedMotion}
       />
-      {/* Supersonic dot — faster, accent (bigger so it reads as the "fast" one) */}
+      {/* Supersonic dot — faster, accent */}
       <ArcDot
         points={points}
         color={accent}

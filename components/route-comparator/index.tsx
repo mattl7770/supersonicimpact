@@ -7,7 +7,9 @@ import { routes } from "@/data/routes";
 import { buildRouteForPair, isCurated } from "@/lib/flight-time";
 import { useSelection } from "@/lib/selection-context";
 import { useAircraft } from "@/lib/aircraft-context";
+import { computeRouteSegments } from "@/lib/route-terrain";
 import { RouteCard } from "./route-card";
+import { CruiseProfile } from "./cruise-profile";
 
 const RouteChart = dynamic(
   () => import("./route-chart").then((m) => m.RouteChart),
@@ -32,6 +34,14 @@ export function RouteComparator() {
   const curated = useMemo(() => {
     if (!origin || !destination) return false;
     return isCurated(origin.iata, destination.iata, routes);
+  }, [origin, destination]);
+
+  const segments = useMemo(() => {
+    if (!origin || !destination) return null;
+    return computeRouteSegments(
+      [origin.lng, origin.lat],
+      [destination.lng, destination.lat],
+    );
   }, [origin, destination]);
 
   return (
@@ -101,6 +111,18 @@ export function RouteComparator() {
             <div className="mt-4">
               <RouteChart route={route} roundTrip={roundTrip} />
             </div>
+
+            {segments && origin && destination && (
+              <div className="mt-4">
+                <CruiseProfile
+                  segments={segments}
+                  originIata={origin.iata}
+                  destinationIata={destination.iata}
+                  config={config}
+                  distanceNm={route.distanceNm}
+                />
+              </div>
+            )}
 
             {route.notes && (
               <p className="mt-6 text-xs text-foreground/55">
