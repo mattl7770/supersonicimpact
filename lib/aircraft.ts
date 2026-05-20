@@ -14,6 +14,13 @@ export type Aircraft = {
   rangeNm: number;
   /** Mach number permitted over populated land (Boomless / subsonic). */
   boomlessCruiseMach: number;
+  /**
+   * Whether the aircraft has a designed Boomless Cruise capability (quiet
+   * supersonic over land). When false, over-land legs drop to subsonic in the
+   * flight-time math, regardless of `boomlessCruiseMach`. The slider for
+   * Boomless Cruise hides when this is false.
+   */
+  hasBoomlessCruise: boolean;
   /** Passenger capacity. */
   passengers: number;
   era: AircraftEra;
@@ -34,6 +41,7 @@ export const aircraft: Aircraft[] = [
     topMach: 1.7,
     rangeNm: 4250,
     boomlessCruiseMach: 1.3,
+    hasBoomlessCruise: true,
     passengers: 80,
     era: "in-development",
   },
@@ -44,6 +52,7 @@ export const aircraft: Aircraft[] = [
     topMach: 2.04,
     rangeNm: 3550,
     boomlessCruiseMach: 1.0,
+    hasBoomlessCruise: false,
     passengers: 100,
     era: "historical",
   },
@@ -54,6 +63,7 @@ export const aircraft: Aircraft[] = [
     topMach: 2.0,
     rangeNm: 3500,
     boomlessCruiseMach: 1.0,
+    hasBoomlessCruise: false,
     passengers: 140,
     era: "historical",
   },
@@ -64,6 +74,7 @@ export const aircraft: Aircraft[] = [
     topMach: 1.4,
     rangeNm: 1850,
     boomlessCruiseMach: 1.4,
+    hasBoomlessCruise: true,
     passengers: 1,
     era: "in-development",
   },
@@ -74,6 +85,7 @@ export const aircraft: Aircraft[] = [
     topMach: 2.2,
     rangeNm: 1600,
     boomlessCruiseMach: 1.0,
+    hasBoomlessCruise: false,
     passengers: 3,
     era: "in-development",
   },
@@ -84,6 +96,7 @@ export const aircraft: Aircraft[] = [
     topMach: 1.4,
     rangeNm: 4750,
     boomlessCruiseMach: 1.2,
+    hasBoomlessCruise: true,
     passengers: 12,
     era: "concept",
   },
@@ -94,6 +107,7 @@ export const aircraft: Aircraft[] = [
     topMach: 1.6,
     rangeNm: 6200,
     boomlessCruiseMach: 1.2,
+    hasBoomlessCruise: true,
     passengers: 18,
     era: "concept",
   },
@@ -114,6 +128,7 @@ export const CUSTOM_AIRCRAFT: Aircraft = {
   topMach: DEFAULT_AIRCRAFT.topMach,
   rangeNm: DEFAULT_AIRCRAFT.rangeNm,
   boomlessCruiseMach: DEFAULT_AIRCRAFT.boomlessCruiseMach,
+  hasBoomlessCruise: true,
   passengers: DEFAULT_AIRCRAFT.passengers,
   era: DEFAULT_AIRCRAFT.era,
 };

@@ -20,7 +20,11 @@ const STORAGE_KEY = "supersonicimpact.aircraft";
 
 export type AircraftConfig = Pick<
   Aircraft,
-  "topMach" | "rangeNm" | "boomlessCruiseMach" | "passengers"
+  | "topMach"
+  | "rangeNm"
+  | "boomlessCruiseMach"
+  | "hasBoomlessCruise"
+  | "passengers"
 >;
 
 type PersistedState = {
@@ -44,6 +48,7 @@ function configFromAircraft(a: Aircraft): AircraftConfig {
     topMach: a.topMach,
     rangeNm: a.rangeNm,
     boomlessCruiseMach: a.boomlessCruiseMach,
+    hasBoomlessCruise: a.hasBoomlessCruise,
     passengers: a.passengers,
   };
 }
@@ -57,7 +62,9 @@ function validate(parsed: unknown): PersistedState | null {
   const o = parsed as Record<string, unknown>;
   if (o.v !== 1) return null;
   if (typeof o.presetId !== "string") return null;
-  if (o.presetId !== "custom" && !getAircraftById(o.presetId)) return null;
+  const matchedPreset =
+    o.presetId === "custom" ? CUSTOM_AIRCRAFT : getAircraftById(o.presetId);
+  if (!matchedPreset) return null;
   const c = o.config;
   if (!c || typeof c !== "object") return null;
   const cfg = c as Record<string, unknown>;
@@ -65,6 +72,12 @@ function validate(parsed: unknown): PersistedState | null {
   if (!isFiniteInRange(cfg.rangeNm, 500, 15000)) return null;
   if (!isFiniteInRange(cfg.boomlessCruiseMach, 0.5, 2)) return null;
   if (!isFiniteInRange(cfg.passengers, 1, 1000)) return null;
+  // hasBoomlessCruise was added later. Fall back to the matched preset's value
+  // so old persisted state migrates cleanly.
+  const hasBoomlessCruise =
+    typeof cfg.hasBoomlessCruise === "boolean"
+      ? cfg.hasBoomlessCruise
+      : matchedPreset.hasBoomlessCruise;
   return {
     v: 1,
     presetId: o.presetId,
@@ -72,6 +85,7 @@ function validate(parsed: unknown): PersistedState | null {
       topMach: cfg.topMach,
       rangeNm: cfg.rangeNm,
       boomlessCruiseMach: cfg.boomlessCruiseMach,
+      hasBoomlessCruise,
       passengers: cfg.passengers,
     },
   };
@@ -162,10 +176,18 @@ export function AircraftProvider({ children }: { children: ReactNode }) {
 
   const setConfig = useCallback((partial: Partial<AircraftConfig>) => {
     const cur = readSnapshot();
+    // Custom always exposes the full set of knobs, including Boomless Cruise.
+    // If we're auto-switching from a non-Boomless preset (e.g. Concorde), flip
+    // hasBoomlessCruise on so the slider becomes available.
+    const wasCustom = cur.presetId === "custom";
     writeStorage({
       v: 1,
       presetId: "custom",
-      config: { ...cur.config, ...partial },
+      config: {
+        ...cur.config,
+        ...partial,
+        hasBoomlessCruise: wasCustom ? cur.config.hasBoomlessCruise : true,
+      },
     });
   }, []);
 

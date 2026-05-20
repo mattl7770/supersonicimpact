@@ -96,15 +96,24 @@ export function AircraftPanel() {
             onChange={(n) => setConfig({ rangeNm: n })}
             formatValue={(v) => `${v.toLocaleString()} NM`}
           />
-          <Slider
-            label="Boomless cruise"
-            value={config.boomlessCruiseMach}
-            min={0.8}
-            max={1.5}
-            step={0.05}
-            onChange={(n) => setConfig({ boomlessCruiseMach: n })}
-            formatValue={(v) => `Mach ${v.toFixed(2)}`}
-          />
+          {config.hasBoomlessCruise ? (
+            <Slider
+              label="Boomless cruise"
+              value={config.boomlessCruiseMach}
+              min={0.8}
+              max={1.5}
+              step={0.05}
+              onChange={(n) => setConfig({ boomlessCruiseMach: n })}
+              formatValue={(v) => `Mach ${v.toFixed(2)}`}
+            />
+          ) : (
+            <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] px-3 py-2.5 text-[11px] leading-snug text-foreground/65">
+              <span className="font-medium text-foreground/80">
+                Subsonic over land.
+              </span>{" "}
+              No Boomless Cruise; over-land legs drop to ~480 kt.
+            </div>
+          )}
           <Slider
             label="Passengers"
             value={config.passengers}

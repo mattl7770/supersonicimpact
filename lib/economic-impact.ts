@@ -1,8 +1,41 @@
 import { routes } from "@/data/routes";
+import { getAirportByIata } from "./airports";
+import { haversineNm } from "./geo";
+import { computeLandFraction } from "./route-terrain";
+import { computeSubsonicHours, computeSupersonicHours } from "./flight-time";
+import type { AircraftConfig } from "./aircraft-context";
 
-const SAVED = routes.map((r) => r.subsonicHours - r.supersonicHours);
-const SUBSONIC = routes.map((r) => r.subsonicHours);
-const SUPERSONIC = routes.map((r) => r.supersonicHours);
+const OVERTURE_DEFAULTS: AircraftConfig = {
+  topMach: 1.7,
+  rangeNm: 4250,
+  boomlessCruiseMach: 1.3,
+  hasBoomlessCruise: true,
+  passengers: 80,
+};
+
+// Recompute per-route hours via the formula (which now handles Boomless Cruise
+// and per-route land fraction). For pairs whose airport coords aren't in our
+// list, fall back to the hard-coded curated hours.
+const COMPUTED = routes.map((r) => {
+  const o = getAirportByIata(r.origin.iata);
+  const d = getAirportByIata(r.destination.iata);
+  if (!o || !d) {
+    return { subsonic: r.subsonicHours, supersonic: r.supersonicHours };
+  }
+  const distanceNm = haversineNm([o.lng, o.lat], [d.lng, d.lat]);
+  const landFraction = computeLandFraction(
+    [o.lng, o.lat],
+    [d.lng, d.lat],
+  );
+  return {
+    subsonic: computeSubsonicHours(distanceNm),
+    supersonic: computeSupersonicHours(distanceNm, OVERTURE_DEFAULTS, landFraction),
+  };
+});
+
+const SAVED = COMPUTED.map((r) => r.subsonic - r.supersonic);
+const SUBSONIC = COMPUTED.map((r) => r.subsonic);
+const SUPERSONIC = COMPUTED.map((r) => r.supersonic);
 const mean = (xs: number[]) => xs.reduce((s, x) => s + x, 0) / xs.length;
 
 export const AVG_HOURS_SAVED_PER_ONE_WAY = mean(SAVED);
@@ -69,8 +102,8 @@ export function computeEconomicImpact(i: EconomicInputs): EconomicOutputs {
     jobsSupported,
     perPaxAnnualBenefit,
     globalGdpShare,
-    passengersPerRoute,
     subsonicTimeCost,
     supersonicTimeCost,
+    passengersPerRoute,
   };
 }
